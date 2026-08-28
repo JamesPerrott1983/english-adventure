@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>English Adventure — Lesson</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4F8EF7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+</head>
+<body data-page="lessons">
+<main class="ea-main" id="main"></main>
+
+<script src="js/storage.js"></script>
+<script src="js/images.js"></script>
+<script src="js/app.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/lesson-data.js"></script>
+<script src="js/curriculum-data.js"></script>
+<script src="js/custom-lessons.js"></script>
+<script src="js/lesson-loader.js"></script>
+<script src="js/scoring.js"></script>
+<script>
+(function () {
+  window.EA_BASE = "";
+  EA.initPage();
+  EA.audio.init();
+
+  var main = EA.qs("#main");
+  var lesson = EA.lessons.byId(EA.param("id"));
+  if (!lesson) {
+    main.innerHTML = '<div class="ea-card ea-center"><h2>We can\u2019t find that lesson!</h2></div>';
+    main.firstChild.appendChild(EA.el("a", { class: "ea-btn", href: "lessons.html", text: "My Lessons" }));
+    return;
+  }
+  document.title = lesson.title + " — " + EA.config.appName;
+  EA.progress.touchLesson(lesson.id);
+
+  var head = EA.el("div", { class: "ea-center" });
+  head.appendChild(EA.el("h1", { text: EA.lessons.displayTitleWithPage(lesson) }));
+  if (lesson.titleCs) head.appendChild(EA.el("p", { class: "ea-cs", text: lesson.titleCs, lang: "cs" }));
+
+  /* Objective bubble spoken by the mascot */
+  var row = EA.el("div", { class: "ea-mascot-row" });
+  var m = EA.el("div", { "aria-hidden": "true" }); m.innerHTML = EA.art.mascot("happy");
+  var bubble = EA.el("div", { class: "ea-bubble" });
+  bubble.appendChild(EA.el("div", { text: lesson.description || (lesson.learningObjectives || [])[0] || "Let\u2019s practise English!" }));
+  if (lesson.descriptionCs) bubble.appendChild(EA.el("div", { class: "ea-cs", text: lesson.descriptionCs, lang: "cs" }));
+  row.appendChild(m); row.appendChild(bubble);
+  head.appendChild(row);
+
+  /* Target words as chips (tap to hear) */
+  var words = (lesson.targetPhrases || []).concat(lesson.targetVocabulary || []).slice(0, 8);
+  if (words.length) {
+    var chipRow = EA.el("p");
+    words.forEach(function (w) {
+      chipRow.appendChild(EA.el("button", {
+        class: "ea-chip", style: "cursor:pointer;font-size:17px;margin:3px;min-height:44px",
+        text: "🔊 " + w, "aria-label": "Hear: " + w,
+        onclick: function () { EA.audio.speak(w); }
+      }));
+    });
+    head.appendChild(chipRow);
+  }
+  main.appendChild(head);
+
+  var keys = EA.lessons.enabledGameKeys(lesson);
+  var L = EA.progress.lesson(lesson.id);
+  var firstUnplayed = keys.filter(function (k) { return !L.games[k] || !L.games[k].completed; })[0] || keys[0];
+
+  var startAll = EA.el("p", { class: "ea-center" });
+  startAll.appendChild(EA.el("a", {
+    class: "ea-btn ea-btn-big ea-btn-green",
+    href: "games/" + EA.lessons.GAME_META[firstUnplayed].page + "?lesson=" + encodeURIComponent(lesson.id),
+    text: "▶ Start All Games"
+  }));
+  main.appendChild(startAll);
+
+  var grid = EA.el("div", { class: "ea-grid" });
+  keys.forEach(function (k) {
+    var meta = EA.lessons.GAME_META[k];
+    var g = L.games[k];
+    var card = EA.el("div", { class: "ea-card ea-lesson-card ea-center" });
+    card.appendChild(EA.el("div", { style: "font-size:52px", text: meta.icon, "aria-hidden": "true" }));
+    card.appendChild(EA.el("h3", { text: meta.name }));
+    var stars = g ? g.stars : 0;
+    card.appendChild(EA.el("div", { class: "ea-stars", "aria-label": stars + " of 3 stars", text: "★".repeat(stars) + "☆".repeat(3 - stars) }));
+    card.appendChild(EA.el("a", {
+      class: "ea-btn" + (g && g.completed ? " ea-btn-soft" : ""),
+      href: "games/" + meta.page + "?lesson=" + encodeURIComponent(lesson.id),
+      text: g && g.completed ? "Play Again" : "Start ▶"
+    }));
+    grid.appendChild(card);
+  });
+  main.appendChild(grid);
+})();
+</script>
+</body>
+</html>

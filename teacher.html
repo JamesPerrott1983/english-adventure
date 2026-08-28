@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>English Adventure — Teacher Area</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4F8EF7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+<style>
+  .t-lesson-row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:12px 0; border-bottom:2px solid var(--colour-border); }
+  .t-lesson-row .grow { flex:1; min-width:180px; }
+  .t-actions button { margin:2px; }
+  #messages p, #edit-messages p { margin:4px 0; }
+
+  .t-thumb-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:12px; margin-top:12px; }
+  .t-thumb { border:2px solid var(--colour-border); border-radius:12px; background:#fff; padding:8px; text-align:center; }
+  .t-thumb .t-im { height:76px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:8px; background:#F4FAFF; }
+  .t-thumb .t-im img, .t-thumb .t-im svg { max-height:76px; max-width:100%; }
+  .t-thumb code { display:block; font-size:11px; color:var(--colour-muted); margin:6px 0 4px; word-break:break-all; }
+  .t-thumb button { font-size:13px; min-height:34px; padding:2px 10px; margin:1px; border-radius:8px; border:2px solid var(--colour-border); background:#fff; cursor:pointer; }
+  .t-picker .t-thumb { cursor:pointer; }
+  .t-picker .t-thumb:hover { border-color:var(--colour-primary); box-shadow:0 3px 10px rgba(38,78,130,.15); }
+
+  #edit-json { width:100%; min-height:340px; font-family:ui-monospace, Consolas, monospace; font-size:13px; line-height:1.5;
+    border:3px solid var(--colour-border); border-radius:12px; padding:12px; resize:vertical; box-sizing:border-box; }
+</style>
+</head>
+<body data-page="teacher">
+<main class="ea-main">
+  <h1>⚙️ Teacher Area</h1>
+
+  <div id="pin-gate" class="ea-card" hidden>
+    <p>Enter the teacher PIN to continue. (This is a simple lock against accidental access, not real security.)</p>
+    <div class="ea-field">
+      <label for="pin-input">PIN</label>
+      <input type="text" id="pin-input" inputmode="numeric" autocomplete="off">
+    </div>
+    <button class="ea-btn" id="pin-btn">Open Teacher Area</button>
+  </div>
+
+  <div id="teacher-content" hidden>
+
+    <section class="ea-card" style="margin-bottom:18px">
+      <h2>Lessons</h2>
+      <button class="ea-btn ea-btn-green" id="new-lesson-btn" aria-expanded="false">➕ New lesson</button>
+      <div id="new-lesson-form" class="ea-note" style="margin-top:12px" hidden>
+        <div class="ea-field">
+          <label for="nl-theme">Theme</label>
+          <select id="nl-theme"></select>
+        </div>
+        <div class="ea-field">
+          <label for="nl-unit">Unit — a number (1–28) or a name</label>
+          <input type="text" id="nl-unit" value="1" placeholder="e.g. 8, or Have Fun with English 1">
+        </div>
+        <div class="ea-field">
+          <label for="nl-title">Lesson (title)</label>
+          <input type="text" id="nl-title" placeholder="e.g. What’s This?">
+        </div>
+        <div class="ea-field">
+          <label for="nl-page">Page number</label>
+          <input type="number" id="nl-page" min="1" step="1" value="1">
+        </div>
+        <button class="ea-btn" id="nl-create">Create and open editor</button>
+        <div id="nl-messages" aria-live="polite"></div>
+      </div>
+      <p><button class="lc-small-btn" id="restore-hidden" hidden></button></p>
+      <div id="lesson-list"></div>
+      <div class="ea-note" style="margin-top:16px">
+        <h3 style="margin-top:0">📦 Publish to the app</h3>
+        <p>Edits you make here live only in this browser. When you have approved your lessons,
+           download the publish file and replace <code>js/custom-lessons.js</code> in the app folder
+           with it. Your approved versions then <strong>overwrite the built-in lessons for every
+           computer</strong> that runs that copy of the app.</p>
+        <button class="ea-btn ea-btn-green" id="publish-btn">⬇ Download publish file</button>
+        <div id="publish-messages" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="ea-card" style="margin-bottom:18px">
+      <h2>Images</h2>
+      <p>Your picture folder for lessons. Add PNG, JPG, GIF, WebP or SVG files (under 500 KB each).
+         Every picture gets a reference like <code>img:dog-x4k2</code> that you can use in any lesson's
+         <code>"image"</code> or <code>"thumbnail"</code> field.</p>
+      <input type="file" id="image-files" accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml" multiple aria-label="Add image files">
+      <div id="image-grid" class="t-thumb-grid"></div>
+      <p class="ea-note" style="margin-top:12px">Pictures are stored in this browser on this device. To use the same
+         pictures on another computer, copy the files into <code>assets/lesson-images/</code> on the server and
+         reference them by path instead (e.g. <code>"assets/lesson-images/dog.png"</code>).</p>
+      <p class="ea-error" id="image-unavailable" hidden>Image storage (IndexedDB) is not available in this browser.</p>
+    </section>
+
+    <section class="ea-card" style="margin-bottom:18px">
+      <h2>Edit a lesson (JSON)</h2>
+      <div class="ea-field">
+        <label for="edit-select">Choose a lesson</label>
+        <select id="edit-select"></select>
+      </div>
+      <div class="ea-field">
+        <label for="edit-part">Which part do you want to edit?</label>
+        <select id="edit-part">
+          <option value="whole">Whole lesson (advanced)</option>
+          <option value="info" selected>Lesson info (title, objectives, words)</option>
+          <option value="pictureMatch">Game: Picture Match</option>
+          <option value="sentenceTrain">Game: Sentence Train</option>
+          <option value="wordMatch">Game: Word Match</option>
+          <option value="conversationComic">Game: Conversation Comic</option>
+          <option value="listenAndChoose">Game: Listen and Choose</option>
+        </select>
+      </div>
+      <textarea id="edit-json" spellcheck="false" aria-label="Lesson JSON"></textarea>
+      <div class="t-actions" style="margin-top:8px">
+        <button class="ea-btn ea-btn-soft" id="edit-validate">Validate</button>
+        <button class="ea-btn ea-btn-soft" id="edit-format">Tidy format</button>
+        <button class="ea-btn ea-btn-green" id="edit-save">Save lesson</button>
+      </div>
+      <div id="edit-messages" aria-live="polite"></div>
+
+      <h3 style="margin-top:18px">Pick a picture for an answer</h3>
+      <p>Click inside the JSON exactly where the picture reference belongs (between the quotes of an
+         <code>"image"</code> value), then click a picture below — its reference is inserted at the cursor.</p>
+      <div id="picker-grid" class="t-thumb-grid t-picker"></div>
+    </section>
+
+    <section class="ea-card" style="margin-bottom:18px">
+      <h2>Import a lesson</h2>
+      <p>Choose a lesson <strong>JSON</strong> file. It is validated before it appears in the Lesson Library.</p>
+      <input type="file" id="import-file" accept=".json,application/json" aria-label="Choose a lesson JSON file">
+      <div id="messages" aria-live="polite"></div>
+      <p class="ea-note" id="file-note" hidden>You opened the app from a local folder (file://). Importing still works here because lessons are stored in the browser, but the offline service worker is unavailable — see the README.</p>
+    </section>
+
+    <section class="ea-card" style="margin-bottom:18px">
+      <h2>Settings</h2>
+      <div class="ea-field"><label class="ea-switch"><input type="checkbox" id="set-cs"> Show Czech support text</label></div>
+      <div class="ea-field"><label class="ea-switch"><input type="checkbox" id="set-sound"> Sound enabled</label></div>
+      <div class="ea-field"><label class="ea-switch"><input type="checkbox" id="set-motion"> Reduce motion</label></div>
+      <div class="ea-field">
+        <label for="set-seed">Fixed random seed (for testing — leave empty for normal random order)</label>
+        <input type="text" id="set-seed">
+      </div>
+      <div class="ea-field">
+        <label for="set-pin">Teacher PIN (leave empty for no PIN)</label>
+        <input type="text" id="set-pin" inputmode="numeric">
+      </div>
+      <button class="ea-btn" id="save-settings">Save settings</button>
+      <p id="speech-warning" class="ea-error" hidden>⚠️ Speech synthesis is not available in this browser. Listen and Choose will show the written sentence instead of playing audio.</p>
+    </section>
+
+    <section class="ea-card">
+      <h2>Progress tools</h2>
+      <div class="t-actions">
+        <button class="ea-btn ea-btn-soft" id="export-progress">Export progress (JSON)</button>
+        <button class="ea-btn ea-btn-soft" id="import-progress">Import progress</button>
+        <input type="file" id="import-progress-file" accept=".json" hidden>
+        <button class="ea-btn" style="background:var(--colour-accent);box-shadow:0 4px 0 #D64C4C" id="reset-progress">Reset all progress</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="js/storage.js"></script>
+<script src="js/images.js"></script>
+<script src="js/app.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/lesson-data.js"></script>
+<script src="js/curriculum-data.js"></script>
+<script src="js/custom-lessons.js"></script>
+<script src="js/lesson-loader.js"></script>
+<script src="js/scoring.js"></script>
+<script>
+(function () {
+  window.EA_BASE = "";
+  EA.initPage();
+  document.title = EA.config.appName + " — Teacher Area";
+
+  var gate = EA.qs("#pin-gate"), content = EA.qs("#teacher-content");
+  function open() { gate.hidden = true; content.hidden = false; render(); }
+  if (EA.settings.teacherPin) {
+    gate.hidden = false;
+    EA.qs("#pin-btn").addEventListener("click", function () {
+      if (EA.qs("#pin-input").value === EA.settings.teacherPin) open();
+      else EA.toast("That PIN doesn\u2019t match.");
+    });
+  } else { open(); }
+
+  function msg(text, isError) {
+    var box = EA.qs("#messages");
+    box.appendChild(EA.el("p", { class: isError ? "ea-error" : "ea-note", text: text }));
+    setTimeout(function () { box.innerHTML = ""; }, 8000);
+  }
+
+  function download(filename, text) {
+    var a = EA.el("a", { href: "data:application/json;charset=utf-8," + encodeURIComponent(text), download: filename });
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  function render() {
+    if (EA.isFileProtocol) EA.qs("#file-note").hidden = false;
+    if (!EA.audio.speechAvailable()) EA.qs("#speech-warning").hidden = false;
+
+    /* Settings */
+    EA.qs("#set-cs").checked = !!EA.settings.czechSupportEnabled;
+    EA.qs("#set-sound").checked = !!EA.settings.soundEnabled;
+    EA.qs("#set-motion").checked = !!EA.settings.reducedMotion;
+    EA.qs("#set-seed").value = EA.settings.randomSeed || "";
+    EA.qs("#set-pin").value = EA.settings.teacherPin || "";
+
+    /* Restore deleted built-in lessons */
+    var hiddenIds = EA.lessonFlags.get().hidden.filter(function (id) { return EA.lessons.isBuiltIn(id); });
+    var restoreBtn = EA.qs("#restore-hidden");
+    restoreBtn.hidden = hiddenIds.length === 0;
+    restoreBtn.textContent = "\u21A9 Restore " + hiddenIds.length + " deleted built-in lesson" + (hiddenIds.length === 1 ? "" : "s");
+    restoreBtn.onclick = function () { EA.lessonFlags.unhideAll(); render(); };
+
+    /* Lesson list, grouped by theme */
+    var list = EA.qs("#lesson-list");
+    list.innerHTML = "";
+    var groupedAll = EA.lessons.byTheme(EA.lessons.all());
+    var groups = EA.lessons.THEMES.map(function (t) {
+      return { label: "Theme " + t.n + " \u2013 " + t.name, lessons: groupedAll.themes[t.n] };
+    });
+    groups.push({ label: "No theme yet", lessons: groupedAll.unassigned });
+    groups.forEach(function (grp) {
+      if (!grp.lessons.length) return;
+      list.appendChild(EA.el("h3", { style: "margin-bottom:2px", text: grp.label }));
+      grp.lessons.forEach(renderLessonRow);
+    });
+    function renderLessonRow(lesson) {
+      var row = EA.el("div", { class: "t-lesson-row" });
+      var isBuiltIn = EA.lessons.isBuiltIn(lesson.id);
+      var overridden = isBuiltIn && EA.importedLessons.all().some(function (l) { return l.id === lesson.id; });
+      var active = EA.lessonFlags.isActive(lesson.id);
+
+      var info = EA.el("div", { class: "grow" });
+      info.appendChild(EA.el("strong", { text: EA.lessons.displayTitleWithPage(lesson) }));
+      info.appendChild(EA.el("div", {
+        class: "ea-round-label",
+        text: "ID: " + lesson.id + " · " +
+              (isBuiltIn ? (overridden ? "built-in (your edited copy is in use)" : "built-in") : "imported") + " · " +
+              EA.lessons.enabledGameKeys(lesson).length + " games" + (active ? "" : " · deactivated")
+      }));
+      row.appendChild(info);
+
+      var actions = EA.el("div", { class: "t-actions" });
+      actions.appendChild(EA.el("button", {
+        class: "lc-small-btn", text: "👀 Preview",
+        onclick: function () { location.href = "lesson.html?id=" + encodeURIComponent(lesson.id); }
+      }));
+      actions.appendChild(EA.el("button", {
+        class: "lc-small-btn", text: "🛠 Edit games",
+        onclick: function () { location.href = "teacher-edit.html?id=" + encodeURIComponent(lesson.id); }
+      }));
+      actions.appendChild(EA.el("button", {
+        class: "lc-small-btn", text: "✏️ Rename",
+        onclick: function () {
+          var name = prompt("New lesson name:", lesson.title);
+          if (!name || !name.trim() || name.trim() === lesson.title) return;
+          var copy = JSON.parse(JSON.stringify(lesson));
+          copy.title = name.trim();
+          try { saveLessonObject(copy); msg("Renamed to \u201C" + copy.title + "\u201D."); render(); }
+          catch (e) { msg(e.message, true); }
+        }
+      }));
+      actions.appendChild(EA.el("button", {
+        class: "lc-small-btn", text: "🖼 Pick a thumbnail",
+        onclick: function () { openThumbnailPicker(lesson); }
+      }));
+      actions.appendChild(EA.el("button", {
+        class: "lc-small-btn", text: active ? "⏸ Deactivate" : "▶ Activate",
+        onclick: function () { EA.lessonFlags.setActive(lesson.id, !active); render(); }
+      }));
+      actions.appendChild(EA.el("button", {
+        class: "lc-small-btn", text: "💾 Export",
+        onclick: function () { download(lesson.id + ".json", JSON.stringify(lesson, null, 2)); }
+      }));
+      actions.appendChild(EA.el("button", {
+        class: "lc-small-btn", text: "📋 Duplicate",
+        onclick: function () {
+          var copy = JSON.parse(JSON.stringify(lesson));
+          copy.id = lesson.id + "-copy-" + Date.now().toString(36);
+          copy.title = lesson.title + " (copy)";
+          try { EA.importedLessons.add(copy); msg("Duplicated as \u201C" + copy.title + "\u201D."); render(); }
+          catch (e) { msg(e.message, true); }
+        }
+      }));
+      if (overridden) {
+        actions.appendChild(EA.el("button", {
+          class: "lc-small-btn", style: "border-color:var(--colour-secondary)", text: "↩ Reset to built-in",
+          onclick: function () {
+            if (confirm("Replace your edited copy of \u201C" + lesson.title + "\u201D with the app\u2019s built-in version? Your edits to this lesson will be lost (export first if you want to keep them). Children\u2019s progress stays saved.")) {
+              EA.importedLessons.remove(lesson.id);
+              render();
+            }
+          }
+        }));
+      }
+      actions.appendChild(EA.el("button", {
+        class: "lc-small-btn", style: "border-color:var(--colour-accent)", text: "🗑 Delete",
+        onclick: function () {
+          var q = isBuiltIn
+            ? "Delete \u201C" + lesson.title + "\u201D from this device? Built-in lessons can be restored later with the Restore button. Children\u2019s progress stays saved."
+            : "Delete the lesson \u201C" + lesson.title + "\u201D? Children\u2019s progress for it stays saved.";
+          if (!confirm(q)) return;
+          if (EA.importedLessons.all().some(function (l) { return l.id === lesson.id; })) {
+            EA.importedLessons.remove(lesson.id);
+          }
+          if (isBuiltIn) EA.lessonFlags.hide(lesson.id);
+          render();
+        }
+      }));
+      row.appendChild(actions);
+      list.appendChild(row);
+    }
+
+    renderEditorSelect();
+    renderImageGrids();
+  }
+
+  /* Save a lesson object: imported lessons are updated in place; editing a
+     built-in lesson creates a copy that replaces it on this device. */
+  function saveLessonObject(lesson) {
+    var existsImported = EA.importedLessons.all().some(function (l) { return l.id === lesson.id; });
+    if (existsImported) EA.importedLessons.update(lesson);
+    else EA.importedLessons.add(lesson);
+    return existsImported;
+  }
+
+  /* Modal: pick a thumbnail for a lesson from the image library + built-in scenes */
+  function openThumbnailPicker(lesson) {
+    var overlay = EA.el("div", { class: "ea-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Pick a thumbnail" });
+    var card = EA.el("div", { class: "ea-card", style: "max-width:680px;width:100%;max-height:82vh;overflow:auto;text-align:left" });
+    card.appendChild(EA.el("h3", { text: "Pick a thumbnail for \u201C" + lesson.title + "\u201D" }));
+    card.appendChild(EA.el("p", { class: "ea-round-label", text: "Current: " + (lesson.thumbnail || "none") }));
+    var grid = EA.el("div", { class: "t-thumb-grid t-picker" });
+
+    function choose(ref) {
+      var copy = JSON.parse(JSON.stringify(lesson));
+      copy.thumbnail = ref;
+      try {
+        saveLessonObject(copy);
+        overlay.remove();
+        msg("Thumbnail for \u201C" + copy.title + "\u201D is now " + ref + ".");
+        render();
+      } catch (e) { overlay.remove(); msg(e.message, true); }
+    }
+
+    var listPromise = EA.images.available ? EA.images.all() : Promise.resolve([]);
+    listPromise.then(function (records) {
+      records.forEach(function (rec) {
+        var img = document.createElement("img"); img.alt = "";
+        EA.images.url(rec.id).then(function (u) { img.src = u; });
+        grid.appendChild(thumbCell("img:" + rec.id, null, img, [], choose));
+      });
+      EA.lessons.SCENE_NAMES.forEach(function (name) {
+        var wrap = document.createElement("div");
+        wrap.innerHTML = EA.art.scene(name, name);
+        grid.appendChild(thumbCell("svg:" + name, null, wrap, [], choose));
+      });
+    });
+
+    card.appendChild(grid);
+    card.appendChild(EA.el("button", {
+      class: "ea-btn ea-btn-soft", style: "margin-top:14px", text: "Cancel",
+      onclick: function () { overlay.remove(); }
+    }));
+    overlay.appendChild(card);
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
+  /* ================= Image library ================= */
+
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { EA.toast("Copied: " + text); });
+    } else {
+      var ta = EA.el("textarea", { style: "position:fixed;opacity:0" }); ta.value = text;
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); EA.toast("Copied: " + text); } catch (e) {}
+      ta.remove();
+    }
+  }
+
+  function thumbCell(ref, labelNode, imgNode, buttons, onClick) {
+    var cell = EA.el("div", { class: "t-thumb" });
+    var im = EA.el("div", { class: "t-im", "aria-hidden": "true" });
+    im.appendChild(imgNode);
+    cell.appendChild(im);
+    if (labelNode) cell.appendChild(labelNode);
+    cell.appendChild(EA.el("code", { text: ref }));
+    (buttons || []).forEach(function (b) { cell.appendChild(b); });
+    if (onClick) {
+      cell.setAttribute("tabindex", "0");
+      cell.setAttribute("role", "button");
+      cell.setAttribute("aria-label", "Insert " + ref + " at the cursor");
+      cell.addEventListener("click", function () { onClick(ref); });
+      cell.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(ref); } });
+    }
+    return cell;
+  }
+
+  function renderImageGrids() {
+    var grid = EA.qs("#image-grid"), picker = EA.qs("#picker-grid");
+    if (!grid || !picker) return;
+    grid.innerHTML = ""; picker.innerHTML = "";
+
+    if (!EA.images.available) { EA.qs("#image-unavailable").hidden = false; return; }
+
+    EA.images.all().then(function (records) {
+      if (!records.length) {
+        grid.appendChild(EA.el("p", { class: "ea-round-label", text: "No pictures yet — add some above." }));
+      }
+      records.forEach(function (rec) {
+        var ref = "img:" + rec.id;
+
+        /* Manage grid: copy + delete */
+        var img1 = document.createElement("img"); img1.alt = "";
+        EA.images.url(rec.id).then(function (u) { img1.src = u; });
+        var copyBtn = EA.el("button", { text: "📋 Copy", onclick: function () { copyText('"' + ref + '"'); } });
+        var delBtn = EA.el("button", {
+          text: "🗑 Delete",
+          onclick: function () {
+            var used = lessonsUsingRef(ref);
+            var q = used.length
+              ? "\u201C" + rec.name + "\u201D is used by: " + used.join(", ") + ". Those questions will fall back to a built-in picture. Delete anyway?"
+              : "Delete \u201C" + rec.name + "\u201D?";
+            if (confirm(q)) EA.images.remove(rec.id).then(renderImageGrids);
+          }
+        });
+        grid.appendChild(thumbCell(ref, EA.el("div", { style: "font-size:13px", text: rec.name }), img1, [copyBtn, delBtn]));
+
+        /* Picker grid: click to insert */
+        var img2 = document.createElement("img"); img2.alt = "";
+        EA.images.url(rec.id).then(function (u) { img2.src = u; });
+        picker.appendChild(thumbCell(ref, null, img2, [], insertAtCursor));
+      });
+
+      /* Built-in scenes in the picker */
+      EA.lessons.SCENE_NAMES.forEach(function (name) {
+        var ref = "svg:" + name;
+        var wrap = document.createElement("div");
+        wrap.innerHTML = EA.art.scene(name, name);
+        picker.appendChild(thumbCell(ref, null, wrap, [], insertAtCursor));
+      });
+    });
+  }
+
+  function lessonsUsingRef(ref) {
+    return EA.lessons.all()
+      .filter(function (l) { return JSON.stringify(l).indexOf('"' + ref + '"') >= 0; })
+      .map(function (l) { return l.title; });
+  }
+
+  EA.qs("#image-files").addEventListener("change", function (e) {
+    var files = Array.prototype.slice.call(e.target.files);
+    if (!files.length) return;
+    var chain = Promise.resolve();
+    files.forEach(function (f) {
+      chain = chain.then(function () {
+        return EA.images.add(f).then(function (rec) { msg("Added \u201C" + rec.name + "\u201D as img:" + rec.id + "."); })
+          .catch(function (err) { msg(err.message, true); });
+      });
+    });
+    chain.then(renderImageGrids);
+    e.target.value = "";
+  });
+
+  /* ================= Lesson JSON editor ================= */
+
+  function editorMsg(text, isError) {
+    var box = EA.qs("#edit-messages");
+    box.appendChild(EA.el("p", { class: isError ? "ea-error" : "ea-note", text: text }));
+  }
+  function clearEditorMsgs() { EA.qs("#edit-messages").innerHTML = ""; }
+
+  function renderEditorSelect(keepId) {
+    var sel = EA.qs("#edit-select");
+    if (!sel) return;
+    var current = keepId || sel.value;
+    sel.innerHTML = "";
+    EA.lessons.all().forEach(function (l) {
+      var overridden = EA.lessons.isBuiltIn(l.id) && !EA.importedLessons.all().some(function (i) { return i.id === l.id; });
+      sel.appendChild(EA.el("option", {
+        value: l.id,
+        text: EA.lessons.displayTitleWithPage(l) + (overridden ? " — built-in" : "")
+      }));
+    });
+    if (current && EA.lessons.byId(current)) sel.value = current;
+    loadIntoEditor(sel.value);
+  }
+
+  var PART_LABEL = {
+    whole: "the whole lesson", info: "the lesson info",
+    pictureMatch: "Picture Match", sentenceTrain: "Sentence Train", wordMatch: "Word Match",
+    conversationComic: "Conversation Comic", listenAndChoose: "Listen and Choose"
+  };
+  function currentPart() { return EA.qs("#edit-part").value; }
+
+  function loadIntoEditor(id) {
+    var lesson = EA.lessons.byId(id);
+    var out = "";
+    if (lesson) {
+      var part = currentPart();
+      if (part === "whole") out = lesson;
+      else if (part === "info") { out = JSON.parse(JSON.stringify(lesson)); delete out.games; }
+      else out = (lesson.games && lesson.games[part]) || { enabled: true };
+      out = JSON.stringify(out, null, 2);
+    }
+    EA.qs("#edit-json").value = out;
+    clearEditorMsgs();
+  }
+  EA.qs("#edit-select").addEventListener("change", function (e) { loadIntoEditor(e.target.value); });
+  EA.qs("#edit-part").addEventListener("change", function () { loadIntoEditor(EA.qs("#edit-select").value); });
+
+  /* Rebuild the full lesson from whatever part is in the editor. */
+  function assembleFromEditor() {
+    var parsed = parseEditor();
+    if (!parsed) return null;
+    var part = currentPart();
+    if (part === "whole") return parsed;
+    var current = EA.lessons.byId(EA.qs("#edit-select").value);
+    if (!current) { editorMsg("Choose a lesson first.", true); return null; }
+    var merged;
+    if (part === "info") {
+      merged = JSON.parse(JSON.stringify(parsed));
+      merged.games = parsed.games || JSON.parse(JSON.stringify(current.games || {}));
+    } else {
+      merged = JSON.parse(JSON.stringify(current));
+      merged.games = merged.games || {};
+      merged.games[part] = parsed;
+    }
+    return merged;
+  }
+
+  function parseEditor() {
+    clearEditorMsgs();
+    try { return JSON.parse(EA.qs("#edit-json").value); }
+    catch (err) {
+      editorMsg("This is not valid JSON: " + err.message + " (Tip: check for a missing comma or quote near that position.)", true);
+      return null;
+    }
+  }
+
+  function validateEditor(lesson) {
+    var v = EA.lessons.validate(lesson);
+    v.errors.forEach(function (er) { editorMsg(er, true); });
+    v.warnings.forEach(function (w) { editorMsg("Warning: " + w); });
+    /* Warn about img: references that don't exist in the library */
+    var refs = [], m, re = /"img:([a-zA-Z0-9-]+)"/g, text = JSON.stringify(lesson);
+    while ((m = re.exec(text))) { if (refs.indexOf(m[1]) < 0) refs.push(m[1]); }
+    var done = refs.length && EA.images.available
+      ? EA.images.ids().then(function (ids) {
+          refs.forEach(function (r) {
+            if (ids.indexOf(r) < 0) editorMsg("Warning: the picture \u201Cimg:" + r + "\u201D is not in the image library (a built-in scene will be shown instead).");
+          });
+          return v;
+        })
+      : Promise.resolve(v);
+    return done;
+  }
+
+  EA.qs("#edit-validate").addEventListener("click", function () {
+    var lesson = assembleFromEditor();
+    if (!lesson) return;
+    validateEditor(lesson).then(function (v) {
+      if (v.ok) editorMsg("✅ Looks good! " + (v.warnings.length ? "(with warnings above)" : "No problems found."));
+    });
+  });
+
+  EA.qs("#edit-format").addEventListener("click", function () {
+    var lesson = parseEditor();
+    if (lesson) { EA.qs("#edit-json").value = JSON.stringify(lesson, null, 2); editorMsg("Tidied."); }
+  });
+
+  EA.qs("#edit-save").addEventListener("click", function () {
+    var lesson = assembleFromEditor();
+    if (!lesson) return;
+    validateEditor(lesson).then(function (v) {
+      if (!v.ok) { editorMsg("Not saved — fix the errors above first.", true); return; }
+      var existsImported;
+      try { existsImported = saveLessonObject(lesson); }
+      catch (err) { editorMsg(err.message, true); return; }
+      var what = PART_LABEL[currentPart()];
+      if (EA.lessons.isBuiltIn(lesson.id) && !existsImported) {
+        editorMsg("Saved " + what + ". Your edited copy now replaces the built-in \u201C" + lesson.title + "\u201D on this device.");
+      } else {
+        editorMsg("Saved " + what + " in \u201C" + lesson.title + "\u201D.");
+      }
+      render();
+      renderEditorSelect(lesson.id);
+    });
+  });
+
+  function insertAtCursor(ref) {
+    var ta = EA.qs("#edit-json");
+    var start = ta.selectionStart, end = ta.selectionEnd;
+    if (typeof start !== "number") { copyText('"' + ref + '"'); return; }
+    var v = ta.value;
+    /* If the cursor sits inside an existing "..." string, replace that string's contents. */
+    var before = v.slice(0, start), after = v.slice(end);
+    var qOpen = before.lastIndexOf('"'), lineStart = before.lastIndexOf("\n");
+    var qClose = after.indexOf('"'), lineEnd = after.indexOf("\n");
+    var insideString = qOpen > lineStart && qClose >= 0 && (lineEnd < 0 || qClose < lineEnd);
+    if (insideString) {
+      ta.value = before.slice(0, qOpen + 1) + ref + after.slice(qClose);
+      ta.selectionStart = ta.selectionEnd = qOpen + 1 + ref.length + 1;
+    } else {
+      ta.value = before + '"' + ref + '"' + after;
+      ta.selectionStart = ta.selectionEnd = start + ref.length + 2;
+    }
+    ta.focus();
+    EA.toast("Inserted " + ref);
+  }
+
+  /* ================= Publish to the app ================= */
+  EA.buildCustomLessonsFile = function () {
+    var lessons = EA.importedLessons.all();
+    var body = "/* English Adventure \u2014 approved lessons published from the Teacher Area.\n" +
+      "   Generated: " + new Date().toISOString() + " \u00B7 " + lessons.length + " lesson(s).\n" +
+      "   Replace js/custom-lessons.js in the app folder with this file. */\n" +
+      "window.EA = window.EA || {};\n" +
+      "EA.builtInLessons = EA.builtInLessons || [];\n" +
+      "(function () {\n" +
+      "  var L = " + JSON.stringify(lessons, null, 1) + ";\n" +
+      "  L.forEach(function (l) {\n" +
+      "    for (var i = 0; i < EA.builtInLessons.length; i++) {\n" +
+      "      if (EA.builtInLessons[i].id === l.id) { EA.builtInLessons[i] = l; return; }\n" +
+      "    }\n" +
+      "    EA.builtInLessons.push(l);\n" +
+      "  });\n" +
+      "})();\n";
+    return { code: body, count: lessons.length,
+             libraryImageLessons: lessons.filter(function (l) {
+               return JSON.stringify(l).indexOf("\"img:") >= 0;
+             }).map(function (l) { return EA.lessons.displayTitleWithPage(l); }) };
+  };
+
+  EA.qs("#publish-btn").addEventListener("click", function () {
+    var box = EA.qs("#publish-messages");
+    box.innerHTML = "";
+    var built = EA.buildCustomLessonsFile();
+    if (!built.count) {
+      box.appendChild(EA.el("p", { class: "ea-error", text: "Nothing to publish yet \u2014 there are no edited or imported lessons in this browser." }));
+      return;
+    }
+    if (built.libraryImageLessons.length) {
+      box.appendChild(EA.el("p", { class: "ea-error",
+        text: "\u26A0 These lessons use pictures from this browser\u2019s image library, which does NOT travel with the file \u2014 their pictures will be missing on other computers: " +
+              built.libraryImageLessons.join("; ") + ". Use built-in scenes or files in assets/ for lessons you publish." }));
+    }
+    var blob = new Blob([built.code], { type: "text/javascript" });
+    var a = EA.el("a", { href: URL.createObjectURL(blob), download: "custom-lessons.js" });
+    document.body.appendChild(a); a.click(); a.remove();
+    box.appendChild(EA.el("p", { text: "\u2705 Downloaded custom-lessons.js with " + built.count + " lesson(s). Replace js/custom-lessons.js in the app folder, then refresh twice on each device. Afterwards you can use \u201C\u21A9 Reset to built-in\u201D on rows marked \u2018your edited copy is in use\u2019 so this browser follows the published version too." }));
+  });
+
+  /* ================= Create a new lesson ================= */
+  (function () {
+    var sel = EA.qs("#nl-theme");
+    EA.lessons.THEMES.forEach(function (t) {
+      sel.appendChild(EA.el("option", { value: String(t.n), text: "Theme " + t.n + " \u2013 " + t.name }));
+    });
+    EA.qs("#new-lesson-btn").addEventListener("click", function () {
+      var f = EA.qs("#new-lesson-form");
+      f.hidden = !f.hidden;
+      this.setAttribute("aria-expanded", String(!f.hidden));
+    });
+    EA.qs("#nl-create").addEventListener("click", function () {
+      var box = EA.qs("#nl-messages"); box.innerHTML = "";
+      function bad(m) { box.appendChild(EA.el("p", { class: "ea-error", text: m })); }
+      var theme = parseInt(EA.qs("#nl-theme").value, 10);
+      var unitRaw = EA.qs("#nl-unit").value.trim();
+      var unit = /^\d+$/.test(unitRaw) ? parseInt(unitRaw, 10) : unitRaw;
+      var title = EA.qs("#nl-title").value.trim();
+      var page = parseInt(EA.qs("#nl-page").value, 10);
+      if (!title) return bad("Please give the lesson a title.");
+      if (unit === "") return bad("Please enter a unit \u2014 a number (1\u201328) or a name like \u201CHave Fun with English 1\u201D.");
+      if (typeof unit === "number" && !(unit >= 1 && unit <= 28)) return bad("Numbered units go from 1 to 28.");
+      if (!(page >= 1)) return bad("Please enter the workbook page number.");
+
+      var slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "lesson";
+      var lesson = {
+        id: "t" + theme + "-u" + (typeof unit === "number" ? unit : (String(unit).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 16) || "x")) + "-" + slug + "-" + Date.now().toString(36).slice(-4),
+        version: 1, schemaVersion: 1,
+        title: title, titleCs: "",
+        topic: EA.lessons.themeName(theme),
+        theme: theme, unit: unit, page: page,
+        description: "Practise the English from page " + page + ".",
+        descriptionCs: "",
+        difficulty: 1, ageRange: "8-9", languageVariant: "en-GB",
+        thumbnail: "svg:meeting", mascot: "mouse",
+        learningObjectives: ["Practise the words and phrases from page " + page],
+        targetVocabulary: [], targetPhrases: [],
+        games: EA.starterGames()
+      };
+      try { EA.importedLessons.add(lesson); }
+      catch (e) { return bad(e.message); }
+      location.href = "teacher-edit.html?id=" + encodeURIComponent(lesson.id);
+    });
+  })();
+
+  /* Import a lesson JSON */
+  EA.qs("#import-file").addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 500 * 1024) { msg("This file is larger than 500 KB. Please keep lesson JSON small (images belong in the assets folder).", true); return; }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var lesson;
+      try { lesson = JSON.parse(reader.result); }
+      catch (err) { msg("This file is not valid JSON: " + err.message, true); return; }
+      var v = EA.lessons.validate(lesson);
+      v.warnings.forEach(function (w) { msg("Warning: " + w); });
+      if (!v.ok) { v.errors.forEach(function (er) { msg(er, true); }); return; }
+      try {
+        EA.importedLessons.add(lesson);
+        msg("\u201C" + lesson.title + "\u201D was imported and now appears in the Lesson Library.");
+        render();
+      } catch (err) { msg(err.message, true); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+
+  /* Settings */
+  EA.qs("#save-settings").addEventListener("click", function () {
+    EA.settings.czechSupportEnabled = EA.qs("#set-cs").checked;
+    EA.settings.soundEnabled = EA.qs("#set-sound").checked;
+    EA.settings.reducedMotion = EA.qs("#set-motion").checked;
+    EA.settings.randomSeed = EA.qs("#set-seed").value.trim();
+    EA.settings.teacherPin = EA.qs("#set-pin").value.trim();
+    EA.saveSettings();
+    EA.applySettingsToPage();
+    EA.rand.init(EA.settings.randomSeed);
+    EA.toast("Settings saved.");
+  });
+
+  /* Progress tools */
+  EA.qs("#export-progress").addEventListener("click", function () {
+    download("english-adventure-progress.json", EA.progress.exportJson());
+  });
+  EA.qs("#import-progress").addEventListener("click", function () { EA.qs("#import-progress-file").click(); });
+  EA.qs("#import-progress-file").addEventListener("change", function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try { EA.progress.importJson(reader.result); msg("Progress imported."); }
+      catch (err) { msg(err.message, true); }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+  EA.qs("#reset-progress").addEventListener("click", function () {
+    if (confirm("Reset ALL stars, badges and progress on this device?")) {
+      EA.progress.reset();
+      EA.toast("Progress was reset.");
+    }
+  });
+})();
+</script>
+</body>
+</html>

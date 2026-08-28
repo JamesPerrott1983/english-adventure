@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>English Adventure — Progress</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4F8EF7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+</head>
+<body data-page="progress">
+<main class="ea-main">
+  <div class="ea-center">
+    <h1>⭐ My Progress</h1>
+    <p class="ea-cs" lang="cs">Můj pokrok</p>
+    <div id="mascot" style="width:110px;margin:0 auto" aria-hidden="true"></div>
+    <p><span class="ea-chip" style="font-size:22px">⭐ <span id="total-stars">0</span> stars</span></p>
+    <div id="badges"></div>
+  </div>
+
+  <h2>My lessons</h2>
+  <div id="path" class="ea-grid"></div>
+
+  <p class="ea-center" style="margin-top:26px">
+    <a class="ea-btn ea-btn-big ea-btn-green" href="lessons.html">▶ Continue Learning</a>
+  </p>
+</main>
+
+<script src="js/storage.js"></script>
+<script src="js/images.js"></script>
+<script src="js/app.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/lesson-data.js"></script>
+<script src="js/curriculum-data.js"></script>
+<script src="js/custom-lessons.js"></script>
+<script src="js/lesson-loader.js"></script>
+<script src="js/scoring.js"></script>
+<script>
+(function () {
+  window.EA_BASE = "";
+  EA.initPage();
+  document.title = EA.config.appName + " — Progress";
+  EA.qs("#mascot").innerHTML = EA.art.mascot("cheer");
+  EA.qs("#total-stars").textContent = EA.progress.totalStars();
+
+  var badges = EA.progress.allBadges();
+  var badgeWrap = EA.qs("#badges");
+  badges.forEach(function (b) {
+    badgeWrap.appendChild(EA.el("span", { class: "ea-badge-pill", style: "margin:4px", text: "🏅 " + b }));
+  });
+  if (!badges.length) badgeWrap.appendChild(EA.el("p", { class: "ea-round-label", text: "Play games to earn badges!" }));
+
+  var p = EA.progress.load();
+  var path = EA.qs("#path");
+  var lessons = EA.lessons.active();
+  if (!lessons.length) path.appendChild(EA.el("p", { text: "No lessons yet." }));
+
+  lessons.forEach(function (lesson) {
+    var L = p.lessons[lesson.id] || { games: {}, completed: false };
+    var keys = EA.lessons.enabledGameKeys(lesson);
+    var stars = 0;
+    Object.keys(L.games || {}).forEach(function (k) { stars += L.games[k].stars || 0; });
+    var done = keys.filter(function (k) { return L.games[k] && L.games[k].completed; }).length;
+
+    var card = EA.el("div", { class: "ea-card ea-lesson-card ea-center" });
+    card.appendChild(EA.el("div", { style: "font-size:44px", "aria-hidden": "true", text: L.completed ? "🏆" : done ? "🚀" : "🌱" }));
+    card.appendChild(EA.el("h3", { text: EA.lessons.displayTitleWithPage(lesson) }));
+    card.appendChild(EA.el("div", { class: "ea-round-label", text: done + " of " + keys.length + " games played" }));
+    card.appendChild(EA.el("div", { class: "ea-stars", "aria-label": stars + " stars", text: stars ? "★".repeat(Math.min(stars, 12)) : "☆" }));
+    card.appendChild(EA.el("a", { class: "ea-btn ea-btn-soft", href: "lesson.html?id=" + encodeURIComponent(lesson.id), text: L.completed ? "Practise Again" : "Open" }));
+    path.appendChild(card);
+  });
+})();
+</script>
+</body>
+</html>

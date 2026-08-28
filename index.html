@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>English Adventure — Home</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4F8EF7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+</head>
+<body data-page="home">
+<main class="ea-main">
+  <div class="ea-center" style="margin-top:12px">
+    <h1 class="ea-visually-hidden" id="app-title">English Adventure</h1>
+    <a class="ea-play-hero" href="lessons.html" aria-label="Start learning">
+      <img class="ea-hero-logo" src="assets/icons/logo.png" alt="">
+      <span class="ea-play-badge" aria-hidden="true"><span class="ea-play-tri"></span></span>
+    </a>
+    <p class="ea-instruction" style="margin-top:18px">Hello! Are you ready to learn English? Tap the sign to start!</p>
+    <p class="ea-cs" lang="cs">Ahoj! Klepni na nápis a začni hrát!</p>
+    <p><span class="ea-chip">⭐ <span id="total-stars">0</span> stars earned</span></p>
+  </div>
+
+  <section id="recent-section" hidden>
+    <h2>Continue where you stopped</h2>
+    <div id="recent-grid" class="ea-grid"></div>
+  </section>
+</main>
+
+<script src="js/storage.js"></script>
+<script src="js/images.js"></script>
+<script src="js/app.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/lesson-data.js"></script>
+<script src="js/curriculum-data.js"></script>
+<script src="js/custom-lessons.js"></script>
+<script src="js/lesson-loader.js"></script>
+<script src="js/scoring.js"></script>
+<script>
+(function () {
+  window.EA_BASE = "";
+  EA.initPage();
+  EA.audio.init();
+  document.title = EA.config.appName + " — Home";
+  EA.qs("#app-title").textContent = EA.config.appName;
+  EA.qs("#total-stars").textContent = EA.progress.totalStars();
+
+  /* Recently opened lessons */
+  var p = EA.progress.load();
+  var recent = Object.keys(p.lessons)
+    .map(function (id) { return { id: id, at: p.lessons[id].lastOpened || "" }; })
+    .filter(function (r) { return EA.lessons.byId(r.id) && EA.lessonFlags.isActive(r.id); })
+    .sort(function (a, b) { return a.at < b.at ? 1 : -1; })
+    .slice(0, 3);
+
+  if (recent.length) {
+    EA.qs("#recent-section").hidden = false;
+    var grid = EA.qs("#recent-grid");
+    recent.forEach(function (r) {
+      var lesson = EA.lessons.byId(r.id);
+      var stars = 0, L = p.lessons[r.id];
+      Object.keys(L.games).forEach(function (k) { stars += L.games[k].stars || 0; });
+      var card = EA.el("div", { class: "ea-card ea-lesson-card" });
+      var thumb = EA.el("div", { class: "ea-thumb", "aria-hidden": "true" });
+      thumb.appendChild(EA.art.imgNode(lesson.thumbnail || "svg:meeting", ""));
+      card.appendChild(thumb);
+      card.appendChild(EA.el("h3", { text: EA.lessons.displayTitleWithPage(lesson) }));
+      card.appendChild(EA.el("div", { class: "ea-stars", text: "★".repeat(stars) || "☆", "aria-label": stars + " stars" }));
+      card.appendChild(EA.el("a", { class: "ea-btn", href: "lesson.html?id=" + encodeURIComponent(lesson.id), text: L.completed ? "Practise Again" : "Continue ▶" }));
+      grid.appendChild(card);
+    });
+  }
+})();
+</script>
+</body>
+</html>

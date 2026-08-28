@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="28" fill="#4F8EF7"/>
+  <circle cx="64" cy="30" r="9" fill="#FFCA3A"/>
+  <path d="M 64 30 L 58 42 L 70 42 Z" fill="#FFCA3A"/>
+  <rect x="20" y="46" width="88" height="56" rx="14" fill="#FFFFFF"/>
+  <text x="64" y="88" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-size="40" font-weight="700" fill="#FF6B6B">A</text>
+  <circle cx="34" cy="112" r="8" fill="#263238"/><circle cx="94" cy="112" r="8" fill="#263238"/>
+</svg>

@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>English Adventure — Edit Lesson</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4F8EF7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+<style>
+  .te-top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .te-top h1 { font-size: clamp(24px, 4vw, 34px); margin: 0; flex: 1; }
+  .te-status { font-family: var(--font-round); border-radius: 999px; padding: 6px 16px;
+    border: 3px solid var(--colour-border); background: var(--colour-card); }
+  .te-status.ok { border-color: var(--colour-success); }
+  .te-status.bad { border-color: var(--colour-accent); background: var(--colour-error-soft); }
+  #te-errors p { margin: 4px 0; }
+  .te-hidden-game { opacity: 0.62; }
+
+  .te-section { margin: 18px 0; }
+  .te-section h2 { display:flex; align-items:center; gap:10px; }
+  .te-grid { display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); }
+  .te-item { border: 2px solid var(--colour-border); border-radius: var(--radius-md); padding: 10px; background: #FBFDFF; }
+  .te-item .te-num { font-family: var(--font-round); color: var(--colour-muted); font-size: 14px; margin-bottom: 6px; }
+
+  .te-img { position: relative; border-radius: 10px; overflow: hidden; background: #E3F2FF;
+    aspect-ratio: 10 / 7; border: 2px solid var(--colour-border); }
+  .te-img > div { width: 100%; height: 100%; }
+  .te-img img, .te-img svg { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .te-change { position: absolute; top: 6px; right: 6px; min-height: 40px; min-width: 44px;
+    border-radius: 10px; border: 2px solid var(--colour-border); background: rgba(255,255,255,0.92);
+    cursor: pointer; font-size: 16px; }
+  .te-change:hover { border-color: var(--colour-primary); }
+
+  .te-field { margin: 8px 0 2px; }
+  .te-field label { display:block; font-size: 13px; color: var(--colour-muted); font-family: var(--font-round); margin-bottom: 2px; }
+  .te-field input[type="text"] { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 16px;
+    border: 2px solid var(--colour-border); border-radius: 8px; font-family: var(--font-body); }
+  .te-field input[type="text"]:focus { border-color: var(--colour-primary); }
+
+  .te-opt { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+  .te-opt input[type="radio"] { width: 22px; height: 22px; flex: none; }
+  .te-opt input[type="text"] { flex: 1; }
+  .te-opt .te-opt-img { flex: 1; }
+  .te-correct-hint { font-size: 13px; color: var(--colour-muted); }
+
+  .te-scene { border: 2px solid var(--colour-border); border-radius: var(--radius-md);
+    padding: 12px; background: #FBFDFF; margin-bottom: 12px; }
+  .te-scene .te-who { font-family: var(--font-round); color: var(--colour-primary-dark); }
+</style>
+</head>
+<body data-page="teacher">
+<main class="ea-main" id="main"></main>
+
+<script>window.EA_BASE = "";</script>
+<script src="js/storage.js"></script>
+<script src="js/images.js"></script>
+<script src="js/app.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/lesson-data.js"></script>
+<script src="js/curriculum-data.js"></script>
+<script src="js/custom-lessons.js"></script>
+<script src="js/lesson-loader.js"></script>
+<script src="js/scoring.js"></script>
+<script>
+(function () {
+  EA.initPage();
+  var main = EA.qs("#main");
+
+  /* ---------- PIN gate (same simple lock as the Teacher Area) ---------- */
+  if (EA.settings.teacherPin) {
+    var pin = prompt("Teacher PIN:");
+    if (pin !== EA.settings.teacherPin) {
+      main.innerHTML = '<div class="ea-card ea-center"><h2>Teacher Area is locked.</h2></div>';
+      main.firstChild.appendChild(EA.el("a", { class: "ea-btn", href: "index.html", text: "Home" }));
+      return;
+    }
+  }
+
+  var source = EA.lessons.byId(EA.param("id"));
+  if (!source) {
+    main.innerHTML = '<div class="ea-card ea-center"><h2>We can\u2019t find that lesson.</h2></div>';
+    main.firstChild.appendChild(EA.el("a", { class: "ea-btn", href: "teacher.html", text: "Teacher Area" }));
+    return;
+  }
+  document.title = "Edit: " + source.title + " — " + EA.config.appName;
+
+  /* Work on a deep copy; every edit auto-saves (validated) after a short pause. */
+  var lesson = JSON.parse(JSON.stringify(source));
+  var saveTimer = null, statusEl, errorsEl;
+
+  function saveLessonObject(l) {
+    var exists = EA.importedLessons.all().some(function (x) { return x.id === l.id; });
+    if (exists) EA.importedLessons.update(l); else EA.importedLessons.add(l);
+  }
+
+  function scheduleSave() {
+    setStatus("Saving\u2026", "");
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveNow, 700);
+  }
+
+  function saveNow() {
+    errorsEl.innerHTML = "";
+    var v = EA.lessons.validate(lesson);
+    if (!v.ok) {
+      setStatus("\u26A0 Not saved", "bad");
+      v.errors.forEach(function (e) { errorsEl.appendChild(EA.el("p", { class: "ea-error", text: e })); });
+      return;
+    }
+    try { saveLessonObject(lesson); } catch (e) {
+      setStatus("\u26A0 Not saved", "bad");
+      errorsEl.appendChild(EA.el("p", { class: "ea-error", text: e.message }));
+      return;
+    }
+    setStatus("\u2713 Saved", "ok");
+    v.warnings.forEach(function (w) { errorsEl.appendChild(EA.el("p", { class: "ea-note", text: "Warning: " + w })); });
+  }
+
+  function setStatus(text, cls) {
+    statusEl.textContent = text;
+    statusEl.className = "te-status " + cls;
+  }
+
+  /* ---------- Small builders ---------- */
+  function field(label, value, onInput) {
+    var wrap = EA.el("div", { class: "te-field" });
+    var lab = EA.el("label", { text: label });
+    var input = EA.el("input", { type: "text", value: value == null ? "" : value });
+    input.addEventListener("input", function () { onInput(input.value); scheduleSave(); });
+    lab.appendChild(input);
+    wrap.appendChild(lab);
+    return wrap;
+  }
+
+  function imgCell(getRef, getAlt, onPick) {
+    var cell = EA.el("div", { class: "te-img" });
+    function paint() {
+      cell.innerHTML = "";
+      cell.appendChild(EA.art.imgNode(getRef(), getAlt() || ""));
+      var btn = EA.el("button", { class: "te-change", text: "\uD83D\uDD8C\uFE0F \u270E", "aria-label": "Change this picture", title: "Change this picture" });
+      btn.addEventListener("click", function () {
+        openPicker(function (ref) { onPick(ref); paint(); scheduleSave(); });
+      });
+      cell.appendChild(btn);
+    }
+    paint();
+    return cell;
+  }
+
+  function openPicker(choose) {
+    var overlay = EA.el("div", { class: "ea-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Pick a picture" });
+    var card = EA.el("div", { class: "ea-card", style: "max-width:680px;width:100%;max-height:82vh;overflow:auto;text-align:left" });
+    card.appendChild(EA.el("h3", { text: "Pick a picture" }));
+    var grid = EA.el("div", { class: "t-thumb-grid t-picker", style: "display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px" });
+
+    function cellFor(ref, node) {
+      var c = EA.el("div", { class: "t-thumb", tabindex: "0", role: "button", "aria-label": "Choose " + ref,
+        style: "border:2px solid var(--colour-border);border-radius:12px;background:#fff;padding:8px;text-align:center;cursor:pointer" });
+      var im = EA.el("div", { style: "height:76px;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:8px;background:#F4FAFF", "aria-hidden": "true" });
+      node.style && (node.style.maxHeight = "76px");
+      im.appendChild(node);
+      c.appendChild(im);
+      c.appendChild(EA.el("code", { style: "display:block;font-size:11px;color:var(--colour-muted);margin-top:6px;word-break:break-all", text: ref }));
+      function pick() { overlay.remove(); choose(ref); }
+      c.addEventListener("click", pick);
+      c.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+      return c;
+    }
+
+    var listPromise = EA.images.available ? EA.images.all() : Promise.resolve([]);
+    listPromise.then(function (records) {
+      records.forEach(function (rec) {
+        var img = document.createElement("img"); img.alt = "";
+        EA.images.url(rec.id).then(function (u) { img.src = u; });
+        grid.appendChild(cellFor("img:" + rec.id, img));
+      });
+      EA.lessons.SCENE_NAMES.forEach(function (name) {
+        var wrap = document.createElement("div");
+        wrap.innerHTML = EA.art.scene(name, name);
+        grid.appendChild(cellFor("svg:" + name, wrap));
+      });
+    });
+
+    card.appendChild(grid);
+    card.appendChild(EA.el("button", { class: "ea-btn ea-btn-soft", style: "margin-top:14px", text: "Cancel", onclick: function () { overlay.remove(); } }));
+    overlay.appendChild(card);
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+  }
+
+  function words(arr) { return (arr || []).join(" "); }
+  function splitWords(text) { return text.split(/\s+/).filter(function (w) { return w.length; }); }
+
+  /* ---------- Page header ---------- */
+  var top = EA.el("div", { class: "te-top" });
+  top.appendChild(EA.el("a", { class: "ea-btn ea-btn-soft", href: "teacher.html", text: "\u25C0 Teacher Area" }));
+  top.appendChild(EA.el("h1", { text: "\u270F\uFE0F " + EA.lessons.displayTitleWithPage(lesson) }));
+  statusEl = EA.el("div", { class: "te-status", role: "status", "aria-live": "polite", text: "No changes yet" });
+  top.appendChild(statusEl);
+  main.appendChild(top);
+  if (EA.param("game")) main.appendChild(EA.el("p", { class: "ea-round-label", text: "Type over any text or use \uD83D\uDD8C\uFE0F \u270E to change a picture \u2014 changes save automatically." }));
+  errorsEl = EA.el("div", { id: "te-errors", "aria-live": "polite" });
+  main.appendChild(errorsEl);
+  if (EA.lessons.isBuiltIn(lesson.id) && !EA.importedLessons.all().some(function (l) { return l.id === lesson.id; })) {
+    main.appendChild(EA.el("p", { class: "ea-note", text: "This is a built-in lesson: your first change creates an editable copy that replaces it on this device." }));
+  }
+
+  /* ---------- Picture Match (dynamic: add/remove pictures and rounds) ---------- */
+  var pmSection = EA.el("section", { class: "ea-card te-section" });
+  function renderPictureMatch() { main.appendChild(pmSection); renderPM(); }
+
+  var PM_SEED_ANSWERS = ["Hello!", "Goodbye!", "Hi!", "Bye!", "Good morning!", "Good night!", "Yes, please!", "No, thank you!"];
+
+  function renderPM() {
+    pmSection.innerHTML = "";
+    var pm = lesson.games.pictureMatch;
+    if (!pm || !(pm.rounds || []).length) return;
+
+    pmSection.appendChild(EA.el("h2", { text: "\uD83D\uDDBC\uFE0F Picture Match" }));
+    pmSection.appendChild(EA.el("p", { class: "te-correct-hint", text: "A round works best with 4\u20136 pictures (2 is the minimum). Every answer in a round must be different." }));
+
+    pm.rounds.forEach(function (round, ri) {
+      var head = EA.el("div", { style: "display:flex;align-items:center;gap:8px;margin-top:14px" });
+      head.appendChild(EA.el("h3", { style: "flex:1;margin:0", text: "Round " + (ri + 1) }));
+      var delRound = EA.el("button", {
+        class: "te-change", style: "position:static;min-width:40px", text: "\u2716",
+        "aria-label": "Remove round " + (ri + 1), title: "Remove this round"
+      });
+      if (pm.rounds.length <= 1) { delRound.disabled = true; delRound.title = "The game needs at least one round"; }
+      delRound.addEventListener("click", function () {
+        if (pm.rounds.length <= 1) return;
+        pm.rounds.splice(ri, 1);
+        renderPM();
+        scheduleSave();
+      });
+      head.appendChild(delRound);
+      pmSection.appendChild(head);
+
+      pmSection.appendChild(field("Instruction (English)", round.instruction, function (v) { round.instruction = v; }));
+      pmSection.appendChild(field("Instruction (Czech)", round.instructionCs, function (v) { round.instructionCs = v; }));
+
+      var grid = EA.el("div", { class: "te-grid", style: "margin-top:10px" });
+      round.items.forEach(function (item, ii) {
+        var box = EA.el("div", { class: "te-item" });
+        var ihead = EA.el("div", { style: "display:flex;align-items:center;gap:8px" });
+        ihead.appendChild(EA.el("div", { class: "te-num", style: "flex:1;margin-bottom:0", text: "Picture " + (ii + 1) }));
+        var delPic = EA.el("button", {
+          class: "te-change", style: "position:static;min-width:40px", text: "\u2716",
+          "aria-label": "Remove picture " + (ii + 1) + " of round " + (ri + 1), title: "Remove this picture"
+        });
+        if (round.items.length <= 2) { delPic.disabled = true; delPic.title = "A round needs at least 2 pictures"; }
+        delPic.addEventListener("click", function () {
+          if (round.items.length <= 2) return;
+          round.items.splice(ii, 1);
+          renderPM();
+          scheduleSave();
+        });
+        ihead.appendChild(delPic);
+        box.appendChild(ihead);
+        box.appendChild(imgCell(function () { return item.image; }, function () { return item.alt; },
+          function (ref) { item.image = ref; }));
+        box.appendChild(field("Answer on the card", item.answer, function (v) { item.answer = v; }));
+        box.appendChild(field("Picture description (for screen readers)", item.alt, function (v) { item.alt = v; }));
+        grid.appendChild(box);
+      });
+      pmSection.appendChild(grid);
+
+      pmSection.appendChild(EA.el("button", {
+        class: "lc-small-btn", style: "margin-top:10px", text: "\u2795 Add a picture to round " + (ri + 1),
+        onclick: function () {
+          var used = round.items.map(function (it) { return it.answer; });
+          var answer = PM_SEED_ANSWERS.filter(function (a) { return used.indexOf(a) < 0; })[0]
+            || ("New word " + (round.items.length + 1));
+          var scene = EA.lessons.SCENE_NAMES[round.items.length % EA.lessons.SCENE_NAMES.length];
+          round.items.push({ answer: answer, image: "svg:" + scene, alt: "Describe this picture" });
+          renderPM();
+          scheduleSave();
+        }
+      }));
+    });
+
+    pmSection.appendChild(EA.el("div", { style: "border-top:2px solid var(--colour-border);margin-top:16px;padding-top:12px" }));
+    pmSection.appendChild(EA.el("button", {
+      class: "ea-btn ea-btn-soft", text: "\u2795 Add a round",
+      onclick: function () {
+        var first = pm.rounds[0] || {};
+        pm.rounds.push({
+          id: "pm-r" + (pm.rounds.length + 1) + "-" + Date.now().toString(36).slice(-4),
+          instruction: first.instruction || "Match the words to the pictures.",
+          instructionCs: first.instructionCs || "P\u0159i\u0159a\u010F slova k obr\u00E1zk\u016Fm.",
+          items: [
+            { answer: "Hello!", image: "svg:meeting", alt: "Two children meeting and waving" },
+            { answer: "Goodbye!", image: "svg:leaving", alt: "A child walking away and waving back" },
+            { answer: "Hi!", image: "svg:wave-boy", alt: "A boy waving happily" },
+            { answer: "Bye!", image: "svg:leaving-girl", alt: "A girl leaving while a boy waves" }
+          ]
+        });
+        renderPM();
+        scheduleSave();
+      }
+    }));
+  }
+
+  /* ---------- Sentence Train (dynamic: add/remove sentences) ---------- */
+  var stSection = EA.el("section", { class: "ea-card te-section" });
+  function renderSentenceTrain() { main.appendChild(stSection); renderST(); }
+
+  function renderST() {
+    stSection.innerHTML = "";
+    var st = lesson.games.sentenceTrain;
+    if (!st || !(st.items || []).length) return;
+
+    stSection.appendChild(EA.el("h2", { text: "\uD83D\uDE82 Sentence Train" }));
+    stSection.appendChild(EA.el("p", { class: "te-correct-hint", text: "Separate words with spaces. Keep punctuation attached to its word (name? \u00B7 Anna. \u00B7 Hello,)." }));
+    var grid2 = EA.el("div", { class: "te-grid" });
+    st.items.forEach(function (item, i) {
+      var box = EA.el("div", { class: "te-item" });
+      var head = EA.el("div", { style: "display:flex;align-items:center;gap:8px" });
+      head.appendChild(EA.el("div", { class: "te-num", style: "flex:1;margin-bottom:0", text: "Sentence " + (i + 1) }));
+      var del = EA.el("button", {
+        class: "te-change", style: "position:static;min-width:40px", text: "\u2716",
+        "aria-label": "Remove sentence " + (i + 1), title: "Remove this sentence"
+      });
+      if (st.items.length <= 1) { del.disabled = true; del.title = "The game needs at least one sentence"; }
+      del.addEventListener("click", function () {
+        if (st.items.length <= 1) return;
+        st.items.splice(i, 1);
+        renderST();
+        scheduleSave();
+      });
+      head.appendChild(del);
+      box.appendChild(head);
+      box.appendChild(imgCell(function () { return item.image; }, function () { return item.prompt; },
+        function (ref) { item.image = ref; }));
+      box.appendChild(field("The sentence (correct order)", words(item.answer), function (v) { item.answer = splitWords(v); }));
+      box.appendChild(field("Extra wrong words (optional)", words(item.distractors), function (v) { item.distractors = splitWords(v); }));
+      box.appendChild(field("Hint shown to the child (English)", item.prompt, function (v) { item.prompt = v; }));
+      box.appendChild(field("Hint (Czech)", item.promptCs, function (v) { item.promptCs = v; }));
+      grid2.appendChild(box);
+    });
+    stSection.appendChild(grid2);
+
+    stSection.appendChild(EA.el("button", {
+      class: "lc-small-btn", style: "margin-top:12px", text: "\u2795 Add a sentence",
+      onclick: function () {
+        st.items.push({
+          id: "st-" + Date.now().toString(36).slice(-5),
+          level: 1,
+          prompt: "Say hello to Anna.",
+          promptCs: "Pozdrav Annu.",
+          image: "svg:wave-girl",
+          answer: ["Hello,", "Anna!"],
+          distractors: []
+        });
+        renderST();
+        scheduleSave();
+      }
+    }));
+  }
+
+  /* ---------- Word Match (dynamic: can be added to lessons that lack it) ---------- */
+  var wmSection = EA.el("section", { class: "ea-card te-section" });
+
+  function renderWM() { main.appendChild(wmSection); renderWordMatch(); }
+  function renderWordMatch() {
+    wmSection.innerHTML = "";
+    wmSection.appendChild(EA.el("h2", { text: "\uD83D\uDD24 Word Match" }));
+    var wm = lesson.games.wordMatch;
+
+    if (!wm || !(wm.rounds || []).length) {
+      wmSection.appendChild(EA.el("p", { text: "This lesson doesn\u2019t have the Word Match game yet. It shows English words on the left and Czech words on the right for children to pair up." }));
+      wmSection.appendChild(EA.el("button", {
+        class: "ea-btn ea-btn-green", text: "\u2795 Add Word Match to this lesson",
+        onclick: function () {
+          var seeds = (lesson.targetVocabulary || []).slice(0, 8);
+          while (seeds.length < 4) seeds.push("");
+          lesson.games.wordMatch = {
+            enabled: true,
+            rounds: [{
+              id: "wm-r1",
+              instruction: "Match the English and Czech words.",
+              instructionCs: "Spoj anglick\u00E1 a \u010Desk\u00E1 slova.",
+              pairs: seeds.map(function (w) { return { en: w, cs: "" }; })
+            }]
+          };
+          renderWordMatch();
+          setStatus("Fill in the words", "");
+        }
+      }));
+      return;
+    }
+
+    wmSection.appendChild(EA.el("p", { class: "te-correct-hint", text: "Each row is one pair: the English word and its Czech partner. 5\u201310 pairs per round works best. The game saves once every pair has both words." }));
+    wm.rounds.forEach(function (round, ri) {
+      if (wm.rounds.length > 1) wmSection.appendChild(EA.el("h3", { text: "Round " + (ri + 1) }));
+      wmSection.appendChild(field("Instruction (English)", round.instruction, function (v) { round.instruction = v; }));
+      wmSection.appendChild(field("Instruction (Czech)", round.instructionCs, function (v) { round.instructionCs = v; }));
+      var head = EA.el("div", { class: "te-opt", style: "margin-top:10px" });
+      head.appendChild(EA.el("div", { style: "flex:1", class: "te-who", text: "English" }));
+      head.appendChild(EA.el("div", { style: "flex:1", class: "te-who", text: "Czech (\u010Desky)" }));
+      head.appendChild(EA.el("div", { style: "width:44px" }));
+      wmSection.appendChild(head);
+
+      round.pairs.forEach(function (pair, pi) {
+        var row = EA.el("div", { class: "te-opt" });
+        var en = EA.el("input", { type: "text", value: pair.en || "", "aria-label": "Pair " + (pi + 1) + " English word" });
+        var cs = EA.el("input", { type: "text", value: pair.cs || "", lang: "cs", "aria-label": "Pair " + (pi + 1) + " Czech word" });
+        en.addEventListener("input", function () { pair.en = en.value; scheduleSave(); });
+        cs.addEventListener("input", function () { pair.cs = cs.value; scheduleSave(); });
+        var del = EA.el("button", {
+          class: "te-change", style: "position:static;min-width:40px", text: "\u2716",
+          "aria-label": "Remove pair " + (pi + 1), title: "Remove this pair",
+          onclick: function () { round.pairs.splice(pi, 1); renderWordMatch(); scheduleSave(); }
+        });
+        row.appendChild(en); row.appendChild(cs); row.appendChild(del);
+        wmSection.appendChild(row);
+      });
+
+      wmSection.appendChild(EA.el("button", {
+        class: "lc-small-btn", style: "margin-top:8px", text: "\u2795 Add a pair",
+        onclick: function () { round.pairs.push({ en: "", cs: "" }); renderWordMatch(); }
+      }));
+    });
+  }
+  /* ---------- Conversation Comic (dynamic: rename characters, add/remove scenes) ---------- */
+  var ccSection = EA.el("section", { class: "ea-card te-section" });
+  function renderConversationComic() { main.appendChild(ccSection); renderCC(); }
+
+  function renderCC() {
+    ccSection.innerHTML = "";
+    var cc = lesson.games.conversationComic;
+    if (!cc || !(cc.scenes || []).length) return;
+    cc.characters = cc.characters && cc.characters.length ? cc.characters : [
+      { id: "anna", name: "Anna" }, { id: "max", name: "Max" }
+    ];
+
+    ccSection.appendChild(EA.el("h2", { text: "\uD83D\uDCAC Conversation Comic" }));
+
+    /* Characters: names are editable; the cartoon faces stay the same */
+    ccSection.appendChild(EA.el("h3", { text: "Characters" }));
+    ccSection.appendChild(EA.el("p", { class: "te-correct-hint", text: "Type new names \u2014 they appear under the cartoon faces and in the scene labels below." }));
+    var charRow = EA.el("div", { class: "te-opt", style: "align-items:flex-end;flex-wrap:wrap;gap:16px" });
+    cc.characters.forEach(function (chr, ci) {
+      var cell = EA.el("div", { style: "text-align:center" });
+      var av = EA.el("div", { style: "width:64px;margin:0 auto", "aria-hidden": "true" });
+      av.innerHTML = EA.art.avatar(chr.id);
+      cell.appendChild(av);
+      var input = EA.el("input", { type: "text", value: chr.name || "", style: "width:150px;text-align:center",
+        "aria-label": "Name of character " + (ci + 1) });
+      input.addEventListener("input", function () { chr.name = input.value; scheduleSave(); });
+      input.addEventListener("change", function () { renderCC(); }); // refresh scene labels on blur
+      cell.appendChild(input);
+      charRow.appendChild(cell);
+    });
+    ccSection.appendChild(charRow);
+
+    var names = {};
+    cc.characters.forEach(function (c) { names[c.id] = c.name; });
+
+    function charSelect(value, ariaLabel, onChange) {
+      var sel = EA.el("select", {
+        style: "padding:6px 10px;border:2px solid var(--colour-border);border-radius:8px;font-size:15px;font-family:var(--font-round)",
+        "aria-label": ariaLabel
+      });
+      cc.characters.forEach(function (c) {
+        sel.appendChild(EA.el("option", { value: c.id, text: c.name || c.id }));
+      });
+      sel.value = value;
+      sel.addEventListener("change", function () { onChange(sel.value); scheduleSave(); renderCC(); });
+      return sel;
+    }
+
+    ccSection.appendChild(EA.el("h3", { text: "Scenes" }));
+    ccSection.appendChild(EA.el("p", { class: "te-correct-hint", text: "The round button marks the correct reply. Editing the marked option keeps it correct." }));
+
+    cc.scenes.forEach(function (scene, si) {
+      var box = EA.el("div", { class: "te-scene" });
+      var head = EA.el("div", { style: "display:flex;align-items:center;gap:8px" });
+      head.appendChild(EA.el("div", { class: "te-num", style: "flex:1;margin-bottom:0", text: "Scene " + (si + 1) }));
+      var del = EA.el("button", {
+        class: "te-change", style: "position:static;min-width:40px", text: "\u2716",
+        "aria-label": "Remove scene " + (si + 1), title: "Remove this scene"
+      });
+      if (cc.scenes.length <= 1) { del.disabled = true; del.title = "A conversation needs at least one scene"; }
+      del.addEventListener("click", function () {
+        if (cc.scenes.length <= 1) return;
+        cc.scenes.splice(si, 1);
+        renderCC();
+        scheduleSave();
+      });
+      head.appendChild(del);
+      box.appendChild(head);
+
+      var sayRow = EA.el("div", { class: "te-who", style: "display:flex;align-items:center;gap:8px;flex-wrap:wrap" });
+      sayRow.appendChild(charSelect(scene.speaker, "Who speaks in scene " + (si + 1), function (v) { scene.speaker = v; }));
+      sayRow.appendChild(EA.el("span", { text: "says:" }));
+      box.appendChild(sayRow);
+      box.appendChild(field("", scene.text, function (v) { scene.text = v; }));
+      var replyRow = EA.el("div", { class: "te-who", style: "margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap" });
+      replyRow.appendChild(charSelect(scene.responseSpeaker, "Who replies in scene " + (si + 1), function (v) { scene.responseSpeaker = v; }));
+      replyRow.appendChild(EA.el("span", { text: "replies (tick the correct one):" }));
+      box.appendChild(replyRow);
+      var ci = Math.max(0, scene.options.indexOf(scene.answer));
+      scene.options.forEach(function (opt, oi) {
+        var row = EA.el("div", { class: "te-opt" });
+        var radio = EA.el("input", { type: "radio", name: "cc-" + si, "aria-label": "Mark option " + (oi + 1) + " as correct" });
+        radio.checked = oi === ci;
+        var input = EA.el("input", { type: "text", value: opt, "aria-label": "Reply option " + (oi + 1) });
+        radio.addEventListener("change", function () {
+          if (radio.checked) { ci = oi; scene.answer = scene.options[oi]; scheduleSave(); }
+        });
+        input.addEventListener("input", function () {
+          scene.options[oi] = input.value;
+          if (oi === ci) scene.answer = input.value;
+          scheduleSave();
+        });
+        row.appendChild(radio); row.appendChild(input);
+        box.appendChild(row);
+      });
+      ccSection.appendChild(box);
+    });
+
+    ccSection.appendChild(EA.el("button", {
+      class: "lc-small-btn", style: "margin-top:4px", text: "\u2795 Add a scene",
+      onclick: function () {
+        var last = cc.scenes[cc.scenes.length - 1];
+        var speaker = last ? last.responseSpeaker : cc.characters[0].id;
+        var responder = cc.characters.filter(function (c) { return c.id !== speaker; })[0] || cc.characters[0];
+        cc.scenes.push({
+          speaker: speaker,
+          text: "How are you?",
+          responseSpeaker: responder.id,
+          options: ["I'm fine, thank you.", "A pencil.", "Seven."],
+          answer: "I'm fine, thank you."
+        });
+        renderCC();
+        scheduleSave();
+      }
+    }));
+  }
+
+  /* ---------- Listen and Choose ---------- */
+  function renderListenAndChoose() {
+  var lc = lesson.games.listenAndChoose;
+  if (lc && ((lc.items || []).length || (lc.rounds || []).some(function (r) { return (r.items || []).length; }))) {
+    var sec4 = EA.el("section", { class: "ea-card te-section" });
+    sec4.appendChild(EA.el("h2", { text: "\uD83D\uDC42 Listen and Choose" }));
+    sec4.appendChild(EA.el("p", { class: "te-correct-hint", text: "\u201CWhat the child hears\u201D is spoken aloud by the app. The round button marks the correct answer." }));
+    var lcRounds = (lc.rounds && lc.rounds.length) ? lc.rounds : [{ items: lc.items }];
+    var qNum = 0;
+    lcRounds.forEach(function (round, ri) {
+      if (lcRounds.length > 1) sec4.appendChild(EA.el("h3", { text: "Round " + (ri + 1) }));
+      round.items.forEach(function (item, i) {
+      qNum += 1;
+      var box = EA.el("div", { class: "te-scene" });
+      box.appendChild(EA.el("div", { class: "te-num", text: "Question " + qNum + " \u00B7 type: " + item.type }));
+      box.appendChild(field("What the child hears", item.audio, function (v) { item.audio = v; }));
+      if (item.type === "gap") {
+        box.appendChild(field("Sentence with the gap (use _____)", item.display, function (v) { item.display = v; }));
+      }
+      var isPicture = item.type === "picture";
+      item.options.forEach(function (opt, oi) {
+        var row = EA.el("div", { class: "te-opt" });
+        var radio = EA.el("input", { type: "radio", name: "lc-" + i, "aria-label": "Mark option " + (oi + 1) + " as correct" });
+        radio.checked = oi === item.answerIndex;
+        radio.addEventListener("change", function () { if (radio.checked) { item.answerIndex = oi; scheduleSave(); } });
+        row.appendChild(radio);
+        if (isPicture) {
+          var wrap = EA.el("div", { class: "te-opt-img" });
+          wrap.appendChild(imgCell(function () { return opt.image; }, function () { return opt.alt; },
+            function (ref) { opt.image = ref; }));
+          wrap.appendChild(field("Picture description", opt.alt, function (v) { opt.alt = v; }));
+          row.appendChild(wrap);
+        } else {
+          var input = EA.el("input", { type: "text", value: opt, "aria-label": "Answer option " + (oi + 1) });
+          input.addEventListener("input", function () { item.options[oi] = input.value; scheduleSave(); });
+          row.appendChild(input);
+        }
+        box.appendChild(row);
+      });
+      sec4.appendChild(box);
+      });
+    });
+    main.appendChild(sec4);
+  }
+  }
+
+  /* ---------- Spelling Bee (dynamic: add/remove words) ---------- */
+  var sbSection = EA.el("section", { class: "ea-card te-section" });
+  function renderSpellingBee() { main.appendChild(sbSection); renderSB(); }
+
+  function renderSB() {
+    sbSection.innerHTML = "";
+    var sb = lesson.games.spellingBee;
+    if (!sb || !(sb.items || []).length) return;
+    sbSection.appendChild(EA.el("h2", { text: "\uD83D\uDC1D Spelling Bee" }));
+    sbSection.appendChild(EA.el("p", { class: "te-correct-hint",
+      text: "Write the word, then copy it into the pattern and replace the hidden letters with _ (e.g. Alligator \u2192 _lli___or). The pattern must be exactly as long as the word." }));
+    var grid = EA.el("div", { class: "te-grid" });
+    sb.items.forEach(function (item, i) {
+      var box = EA.el("div", { class: "te-item" });
+      var head = EA.el("div", { style: "display:flex;align-items:center;gap:8px" });
+      head.appendChild(EA.el("div", { class: "te-num", style: "flex:1;margin-bottom:0", text: "Word " + (i + 1) }));
+      var del = EA.el("button", {
+        class: "te-change", style: "position:static;min-width:40px", text: "\u2716",
+        "aria-label": "Remove word " + (i + 1), title: "Remove this word"
+      });
+      if (sb.items.length <= 1) { del.disabled = true; del.title = "The game needs at least one word"; }
+      del.addEventListener("click", function () {
+        if (sb.items.length <= 1) return;
+        sb.items.splice(i, 1);
+        renderSB();
+        scheduleSave();
+      });
+      head.appendChild(del);
+      box.appendChild(head);
+      box.appendChild(imgCell(function () { return item.image; }, function () { return item.answer; },
+        function (ref) { item.image = ref; }));
+      box.appendChild(field("The word (the answer)", item.answer, function (v) { item.answer = v.trim(); }));
+      box.appendChild(field("Pattern with _ for missing letters", item.pattern, function (v) { item.pattern = v.trim(); }));
+      grid.appendChild(box);
+    });
+    sbSection.appendChild(grid);
+    sbSection.appendChild(EA.el("button", {
+      class: "lc-small-btn", style: "margin-top:12px", text: "\u2795 Add a word",
+      onclick: function () {
+        sb.items.push({ id: "sb-" + Date.now().toString(36).slice(-5), answer: "hello", pattern: "h_ll_", image: "svg:wave-boy" });
+        renderSB();
+        scheduleSave();
+      }
+    }));
+  }
+
+  /* ---------- Hub: pick a game to edit ---------- */
+  var RENDERERS = {
+    pictureMatch: renderPictureMatch,
+    sentenceTrain: renderSentenceTrain,
+    wordMatch: renderWM,
+    conversationComic: renderConversationComic,
+    listenAndChoose: renderListenAndChoose,
+    spellingBee: renderSpellingBee
+  };
+
+  function gameSummary(key) {
+    var g = lesson.games[key] || {};
+    if (key === "pictureMatch") {
+      var n = (g.rounds || []).reduce(function (a, r) { return a + (r.items || []).length; }, 0);
+      return n ? (g.rounds.length + (g.rounds.length === 1 ? " round \u00B7 " : " rounds \u00B7 ") + n + " pictures") : "empty";
+    }
+    if (key === "sentenceTrain") return (g.items || []).length ? g.items.length + " sentences" : "empty";
+    if (key === "wordMatch") {
+      var p = (g.rounds || []).reduce(function (a, r) { return a + (r.pairs || []).length; }, 0);
+      return p ? p + " word pairs" : "empty";
+    }
+    if (key === "conversationComic") return (g.scenes || []).length ? g.scenes.length + " scenes" : "empty";
+    if (key === "listenAndChoose") {
+      var q = (g.items || []).length + (g.rounds || []).reduce(function (a, r) { return a + (r.items || []).length; }, 0);
+      return q ? q + " questions" : "empty";
+    }
+    if (key === "spellingBee") return (g.items || []).length ? g.items.length + " words" : "empty";
+    return "";
+  }
+
+  function ensureGameContent(key) {
+    var g = lesson.games[key];
+    if (!EA.lessons._hasContent(key, g || {})) {
+      lesson.games[key] = EA.starterGames()[key];
+      return true;
+    }
+    return false;
+  }
+
+  var hubWrap = null;
+  function renderHub() {
+    if (!hubWrap) { hubWrap = EA.el("div"); main.appendChild(hubWrap); }
+    hubWrap.innerHTML = "";
+    var grid = EA.el("div", { class: "ea-grid", style: "margin-top:14px" });
+    var enabledKeys = EA.lessons.enabledGameKeys(lesson);
+
+    EA.lessons.GAME_KEYS.forEach(function (key) {
+      var meta = EA.lessons.GAME_META[key];
+      var g = lesson.games[key];
+      var visible = !g || g.enabled !== false;
+      var card = EA.el("div", { class: "ea-card ea-lesson-card ea-center" + (visible ? "" : " te-hidden-game") });
+      card.appendChild(EA.el("div", { style: "font-size:52px", "aria-hidden": "true", text: meta.icon }));
+      card.appendChild(EA.el("h3", { text: meta.name }));
+      card.appendChild(EA.el("div", { class: "ea-round-label", text: gameSummary(key) }));
+      if (!visible) {
+        card.appendChild(EA.el("div", { class: "ea-chip", style: "background:#FFF6DC;margin:0 auto", text: "\uD83D\uDE48 Hidden from pupils" }));
+      }
+      card.appendChild(EA.el("a", {
+        class: "ea-btn",
+        href: "teacher-edit.html?id=" + encodeURIComponent(lesson.id) + "&game=" + key,
+        text: "\u270F\uFE0F Edit"
+      }));
+      if (g) {
+        var lastVisible = visible && enabledKeys.length === 1 && enabledKeys[0] === key;
+        var toggle = EA.el("button", {
+          class: "lc-small-btn",
+          text: visible ? "\uD83D\uDE48 Hide from pupils" : "\uD83D\uDC41 Show to pupils"
+        });
+        if (lastVisible) {
+          toggle.disabled = true;
+          toggle.title = "Pupils need at least one visible game in the lesson";
+        }
+        toggle.addEventListener("click", function () {
+          g.enabled = visible ? false : true;
+          scheduleSave();
+          renderHub();
+        });
+        card.appendChild(toggle);
+      }
+      grid.appendChild(card);
+    });
+    hubWrap.appendChild(grid);
+    var foot = EA.el("p", { class: "ea-center", style: "margin-top:20px" });
+    foot.appendChild(EA.el("a", { class: "ea-btn ea-btn-soft", href: "lesson.html?id=" + encodeURIComponent(lesson.id), text: "\uD83D\uDC40 Preview as a child" }));
+    hubWrap.appendChild(foot);
+  }
+
+  var gameParam = EA.param("game");
+  if (gameParam && RENDERERS[gameParam]) {
+    EA.qs("h1", top).textContent = "\u270F\uFE0F " + EA.lessons.GAME_META[gameParam].icon + " " + EA.lessons.GAME_META[gameParam].name;
+    var back = EA.el("p");
+    back.appendChild(EA.el("a", { class: "lc-small-btn", style: "text-decoration:none;display:inline-block;padding:8px 16px",
+      href: "teacher-edit.html?id=" + encodeURIComponent(lesson.id), text: "\u25C0 All games" }));
+    main.appendChild(back);
+    if (ensureGameContent(gameParam)) {
+      main.appendChild(EA.el("p", { class: "ea-note", text: "Placeholder content was added \u2014 type over it with the real words from the workbook page. It saves once you make a change." }));
+    }
+    RENDERERS[gameParam]();
+  } else {
+    main.appendChild(EA.el("p", { class: "ea-round-label", text: "Choose which game to edit:" }));
+    renderHub();
+  }
+})();
+</script>
+</body>
+</html>

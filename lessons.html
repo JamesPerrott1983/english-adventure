@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>English Adventure — My Lessons</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#4F8EF7">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/global.css">
+</head>
+<body data-page="lessons">
+<main class="ea-main">
+  <div class="ea-center">
+    <h1>🗺️ Choose your adventure!</h1>
+    <p class="ea-instruction" style="margin-top:0">Tap a shield to open a theme.</p>
+    <p class="ea-cs" lang="cs">Klepni na štít a vyber si téma.</p>
+  </div>
+  <div class="map-wrap" id="map">
+    <img src="assets/backgrounds/map.jpg" alt="An adventure map of the United Kingdom with nine theme shields along a winding path">
+  </div>
+  <div class="ea-center" id="other-btn-wrap" hidden>
+    <button class="lc-small-btn" id="other-btn"></button>
+  </div>
+  <section id="theme-view" aria-live="polite"></section>
+</main>
+
+<script src="js/storage.js"></script>
+<script src="js/images.js"></script>
+<script src="js/app.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/art.js"></script>
+<script src="js/navigation.js"></script>
+<script src="js/lesson-data.js"></script>
+<script src="js/curriculum-data.js"></script>
+<script src="js/custom-lessons.js"></script>
+<script src="js/lesson-loader.js"></script>
+<script src="js/scoring.js"></script>
+<script>
+(function () {
+  window.EA_BASE = "";
+  EA.initPage();
+  document.title = EA.config.appName + " — My Lessons";
+
+  var DIFF = { 1: "Easy", 2: "Medium", 3: "Tricky" };
+  var grouped = EA.lessons.byTheme();
+  var progress = EA.progress.load();
+
+  function lessonStats(lesson) {
+    var L = progress.lessons[lesson.id] || { games: {}, completed: false };
+    var keys = EA.lessons.enabledGameKeys(lesson);
+    var done = keys.filter(function (k) { return L.games[k] && L.games[k].completed; }).length;
+    var stars = 0;
+    Object.keys(L.games || {}).forEach(function (k) { stars += L.games[k].stars || 0; });
+    return { completed: !!L.completed, doneGames: done, totalGames: keys.length, stars: stars };
+  }
+
+  function themeProgress(n) {
+    var lessons = grouped.themes[n];
+    var done = lessons.filter(function (l) { return lessonStats(l).completed; }).length;
+    return { done: done, total: lessons.length };
+  }
+
+  /* ---------- Build the map stones ---------- */
+  var map = EA.qs("#map");
+  EA.lessons.THEMES.forEach(function (t) {
+    var pos = EA.lessons.THEME_STONES[t.n];
+    var p = themeProgress(t.n);
+    var stone = EA.el("button", {
+      class: "map-stone" + (p.total === 0 ? " is-empty" : (p.done === p.total ? " is-done" : "")),
+      style: "left:" + (pos[0] * 100) + "%;top:" + (pos[1] * 100) + "%",
+      "aria-label": "Theme " + t.n + ", " + t.name + ", " +
+        (p.total ? p.done + " of " + p.total + " lessons completed" : "no lessons yet")
+    });
+    stone.innerHTML =
+      '<span class="map-inner">' +
+      '<span class="map-shield" aria-hidden="true"><svg viewBox="0 0 100 112">' +
+      '<path class="map-fill" d="M50 4 L92 17 V54 C92 82 73 100 50 108 C27 100 8 82 8 54 V17 Z" stroke="#FFFFFF" stroke-width="7"/>' +
+      '<text class="map-num" x="50" y="72" text-anchor="middle" font-family="Fredoka, sans-serif" font-size="52" font-weight="700">' + t.n + '</text>' +
+      '</svg></span>' +
+      '<span class="map-banner" aria-hidden="true">' + t.name + '</span>' +
+      (p.total ? '<span class="map-progress" aria-hidden="true">' + (p.done === p.total ? "\u2713 " : "") + p.done + "/" + p.total + '</span>' : '') +
+      '</span>';
+    stone.addEventListener("click", function () { showTheme(t.n); });
+    map.appendChild(stone);
+  });
+
+  /* ---------- Lesson cards for a theme ---------- */
+  function lessonCard(lesson) {
+    var s = lessonStats(lesson);
+    var card = EA.el("div", { class: "ea-card ea-lesson-card" });
+    var thumb = EA.el("div", { class: "ea-thumb", "aria-hidden": "true" });
+    thumb.appendChild(EA.art.imgNode(lesson.thumbnail || "svg:meeting", ""));
+    card.appendChild(thumb);
+    card.appendChild(EA.el("h3", { text: EA.lessons.displayTitle(lesson) }));
+    if (lesson.titleCs) card.appendChild(EA.el("div", { class: "ea-cs", text: lesson.titleCs, lang: "cs" }));
+
+    var meta = EA.el("div", { class: "ea-lesson-meta" });
+    if (typeof lesson.page === "number") meta.appendChild(EA.el("span", { class: "ea-chip", text: "\uD83D\uDCD6 Page " + lesson.page }));
+    meta.appendChild(EA.el("span", { class: "ea-chip", text: DIFF[lesson.difficulty] || "Easy" }));
+    meta.appendChild(EA.el("span", { class: "ea-chip", text: s.totalGames + " games" }));
+    if (s.completed) meta.appendChild(EA.el("span", { class: "ea-chip", style: "background:#E9FBF2", text: "\u2705 Done" }));
+    else if (s.doneGames) meta.appendChild(EA.el("span", { class: "ea-chip", text: s.doneGames + "/" + s.totalGames + " played" }));
+    card.appendChild(meta);
+
+    card.appendChild(EA.el("div", { class: "ea-stars", text: s.stars ? "\u2605".repeat(Math.min(s.stars, 12)) : "\u2606\u2606\u2606", "aria-label": s.stars + " stars earned" }));
+    card.appendChild(EA.el("a", {
+      class: "ea-btn" + (s.completed ? " ea-btn-soft" : ""),
+      href: "lesson.html?id=" + encodeURIComponent(lesson.id),
+      text: s.completed ? "Practise Again" : (s.doneGames ? "Continue \u25B6" : "Start \u25B6")
+    }));
+    return card;
+  }
+
+  /* A unit that spans several workbook pages: one card, a button per page */
+  function unitCard(group) {
+    var base = group[0];
+    var stats = group.map(lessonStats);
+    var allDone = stats.every(function (x) { return x.completed; });
+    var stars = stats.reduce(function (n, x) { return n + x.stars; }, 0);
+
+    var card = EA.el("div", { class: "ea-card ea-lesson-card" });
+    var thumb = EA.el("div", { class: "ea-thumb", "aria-hidden": "true" });
+    thumb.appendChild(EA.art.imgNode(base.thumbnail || "svg:meeting", ""));
+    card.appendChild(thumb);
+    card.appendChild(EA.el("h3", { text: EA.lessons.displayTitle(base) }));
+    if (base.titleCs) card.appendChild(EA.el("div", { class: "ea-cs", text: base.titleCs, lang: "cs" }));
+
+    var meta = EA.el("div", { class: "ea-lesson-meta" });
+    meta.appendChild(EA.el("span", { class: "ea-chip", text: DIFF[base.difficulty] || "Easy" }));
+    if (allDone) meta.appendChild(EA.el("span", { class: "ea-chip", style: "background:#E9FBF2", text: "\u2705 Done" }));
+    card.appendChild(meta);
+
+    card.appendChild(EA.el("div", { class: "ea-stars", text: stars ? "\u2605".repeat(Math.min(stars, 12)) : "\u2606\u2606\u2606", "aria-label": stars + " stars earned" }));
+
+    var actions = EA.el("div", { class: "ea-card-actions" });
+    group.forEach(function (l, i) {
+      var st = stats[i];
+      actions.appendChild(EA.el("a", {
+        class: "ea-btn" + (st.completed ? " ea-btn-soft" : ""),
+        style: "font-size:17px;min-height:46px;padding:8px 16px",
+        href: "lesson.html?id=" + encodeURIComponent(l.id),
+        "aria-label": "Page " + l.page + (st.completed ? ", completed" : ""),
+        text: (st.completed ? "\u2713 " : "") + "Page " + l.page + " \u25B6"
+      }));
+    });
+    card.appendChild(actions);
+    return card;
+  }
+
+  var view = EA.qs("#theme-view");
+  function showTheme(n) {
+    var lessons = n === "other" ? grouped.unassigned : grouped.themes[n];
+    var title = n === "other" ? "Other lessons" : "Theme " + n + " \u2013 " + EA.lessons.themeName(n);
+    view.innerHTML = "";
+    view.appendChild(EA.el("h2", { class: "ea-center", text: title }));
+    if (!lessons.length) {
+      var empty = EA.el("div", { class: "ea-card ea-center" });
+      empty.innerHTML = '<div style="width:100px;margin:0 auto">' + EA.art.mascot("think") + "</div>" +
+        "<h3>No lessons here yet!</h3><p>A teacher can add lessons to this theme in the Teacher Area.</p>";
+      view.appendChild(empty);
+    } else {
+      /* One card per unit; lessons of the same unit become Page buttons on that card */
+      var groups = [], byKey = {};
+      lessons.forEach(function (l) {
+        var k = String(l.theme) + "|" + String(l.unit) + "|" + l.title;
+        if (!byKey[k]) { byKey[k] = []; groups.push(byKey[k]); }
+        byKey[k].push(l);
+      });
+      var grid = EA.el("div", { class: "ea-grid" });
+      groups.forEach(function (g) { grid.appendChild(g.length === 1 ? lessonCard(g[0]) : unitCard(g)); });
+      view.appendChild(grid);
+    }
+    view.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (history.replaceState) history.replaceState(null, "", "lessons.html?theme=" + n);
+  }
+
+  /* "Other lessons" shortcut for anything without a theme */
+  if (grouped.unassigned.length) {
+    EA.qs("#other-btn-wrap").hidden = false;
+    var b = EA.qs("#other-btn");
+    b.textContent = "\uD83D\uDCDA Other lessons (" + grouped.unassigned.length + ")";
+    b.addEventListener("click", function () { showTheme("other"); });
+  }
+
+  /* Deep link ?theme=N */
+  var deep = EA.param("theme");
+  if (deep === "other") showTheme("other");
+  else if (deep !== null && grouped.themes[+deep]) showTheme(+deep);
+})();
+</script>
+</body>
+</html>

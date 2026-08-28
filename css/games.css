@@ -1,0 +1,233 @@
+/* English Adventure — styles shared by the four game engines. */
+
+.ea-game-top {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.ea-game-top h1 { font-size: clamp(26px, 4vw, 36px); margin: 0; }
+.ea-game-score {
+  margin-left: auto; font-family: var(--font-round); font-size: 20px;
+  background: var(--colour-card); border: 3px solid var(--colour-border);
+  border-radius: 999px; padding: 6px 18px;
+}
+.ea-instruction { font-size: 22px; font-family: var(--font-round); margin: 6px 0; }
+
+.ea-round-label { font-family: var(--font-round); color: var(--colour-muted); }
+
+/* ---------- Picture Match ---------- */
+.pm-board { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.pm-target {
+  position: relative; background: var(--colour-card);
+  border: 3px dashed var(--colour-border); border-radius: var(--radius-md);
+  padding: 10px; text-align: center; min-height: 200px;
+}
+.pm-target .pm-img { border-radius: var(--radius-sm); overflow: hidden; background: #E3F2FF; }
+.pm-slot {
+  margin-top: 8px; min-height: 54px; border-radius: var(--radius-sm);
+  border: 3px dashed var(--colour-border); display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-round); font-size: 20px; color: var(--colour-muted);
+}
+.pm-target.pm-hint { border-color: var(--colour-secondary); box-shadow: 0 0 0 5px rgba(255,202,58,0.45); }
+.pm-target.pm-done { border-style: solid; border-color: var(--colour-success); }
+.pm-target.pm-done .pm-slot { border: none; background: #E9FBF2; color: var(--colour-text); }
+.pm-tick { position: absolute; top: -14px; right: -10px; font-size: 30px; }
+
+.pm-tray { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-top: 20px; }
+.pm-word {
+  min-height: 54px; padding: 8px 20px; font-size: 22px; font-family: var(--font-round);
+  background: var(--colour-secondary); border: none; border-radius: 999px;
+  box-shadow: 0 4px 0 #D9A612; cursor: grab; touch-action: none;
+}
+.pm-word.pm-selected { outline: 4px solid var(--colour-purple); transform: scale(1.06); }
+.pm-word.pm-dragging { opacity: 0.85; cursor: grabbing; position: fixed; z-index: 300; pointer-events: none; }
+
+/* ---------- Sentence Train ---------- */
+.st-scene { text-align: center; margin-bottom: 10px; }
+.st-scene svg, .st-scene img {
+  max-height: clamp(220px, 42vh, 340px);
+  max-width: min(640px, 100%);
+  border-radius: var(--radius-md);
+}
+.st-track {
+  display: flex; align-items: flex-end; gap: 6px; flex-wrap: wrap;
+  background: linear-gradient(transparent 82%, #B9C7D4 82% 88%, transparent 88%, #B9C7D4 92% 96%, transparent 96%);
+  min-height: 110px; padding: 8px 4px 14px;
+}
+.st-loco { flex: none; }
+.st-loco svg { width: 96px; height: 84px; display: block; }
+.st-slot-area { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-end; min-height: 84px; }
+.st-carriage {
+  min-height: 62px; min-width: 64px; padding: 8px 16px 14px;
+  font-family: var(--font-round); font-size: 24px;
+  border: none; border-radius: 14px 14px 8px 8px; color: #fff; cursor: pointer;
+  background: var(--colour-primary); box-shadow: 0 4px 0 var(--colour-primary-dark);
+  position: relative;
+}
+.st-carriage::after { /* wheels */
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: -8px; height: 12px;
+  background:
+    radial-gradient(circle at 20% 50%, var(--colour-text) 0 6px, transparent 6px),
+    radial-gradient(circle at 80% 50%, var(--colour-text) 0 6px, transparent 6px);
+}
+.st-carriage.c2 { background: var(--colour-accent); box-shadow: 0 4px 0 #D64C4C; }
+.st-carriage.c3 { background: var(--colour-success); box-shadow: 0 4px 0 #2E9E64; }
+.st-carriage.c4 { background: var(--colour-purple); box-shadow: 0 4px 0 #7A5BC7; }
+.st-carriage.c5 { background: #FF9F45; box-shadow: 0 4px 0 #DB7E24; }
+.st-carriage.st-placed { transform: translateY(-2px); }
+.st-tray { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 22px; min-height: 76px; }
+.st-controls { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+.st-first-hint { outline: 5px solid var(--colour-secondary); outline-offset: 3px; }
+.st-info { font-size: 17px; color: var(--colour-muted); text-align: center; margin-top: 8px; }
+
+/* ---------- Conversation Comic ---------- */
+.cc-stage {
+  display: grid; grid-template-columns: minmax(64px, 150px) 1fr minmax(64px, 150px);
+  gap: 12px; align-items: end; margin-top: 8px;
+}
+.cc-fig { text-align: center; transition: opacity 0.3s ease, transform 0.3s ease; }
+.cc-fig svg { width: 100%; max-width: 150px; height: auto; }
+.cc-fig.cc-listening { opacity: 0.55; transform: scale(0.96); }
+.cc-name {
+  display: inline-block; margin-top: 4px; padding: 2px 16px;
+  border-radius: 999px; font-family: var(--font-round); font-size: 16px; color: var(--colour-text);
+}
+.cc-name-left { background: #F9CFE0; border: 2px solid #F3A6C0; }
+.cc-name-right { background: #CFE2F9; border: 2px solid #8FB8F2; }
+
+.cc-col { display: flex; flex-direction: column; gap: 12px; min-height: 220px; padding-bottom: 8px; }
+.cc-bub {
+  position: relative; max-width: 82%; padding: 10px 18px;
+  font-family: var(--font-round); font-size: 21px;
+  border: 3px solid; border-radius: 18px; background: #fff;
+}
+.cc-b-left {
+  align-self: flex-start; border-color: #F3A6C0; background: #FFF3F8;
+  border-bottom-left-radius: 4px;
+}
+.cc-b-left::before {
+  content: ""; position: absolute; left: -16px; bottom: 8px;
+  border: 9px solid transparent; border-right-color: #F3A6C0;
+}
+.cc-b-right {
+  align-self: flex-end; border-color: #8FB8F2; background: #F0F6FF;
+  border-bottom-right-radius: 4px;
+}
+.cc-b-right::before {
+  content: ""; position: absolute; right: -16px; bottom: 8px;
+  border: 9px solid transparent; border-left-color: #8FB8F2;
+}
+.cc-bub.cc-empty {
+  border-style: dashed; border-color: var(--colour-border); background: var(--colour-background);
+  color: var(--colour-muted); min-width: 120px; text-align: center;
+}
+.cc-bub.cc-empty::before { display: none; }
+.cc-bub .cc-say { border: none; background: transparent; font: inherit; cursor: pointer; padding: 0; }
+
+.cc-options { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.cc-option {
+  min-height: 56px; font-size: 22px; font-family: var(--font-round);
+  background: var(--colour-card); border: 3px solid var(--colour-border);
+  border-radius: var(--radius-md); cursor: pointer; padding: 8px 18px; text-align: left;
+}
+.cc-option:hover { border-color: var(--colour-primary); }
+.cc-option.cc-wrong { background: var(--colour-error-soft); border-color: var(--colour-accent); }
+.cc-option.cc-right-pick { background: #E9FBF2; border-color: var(--colour-success); }
+.cc-reaction { font-size: 26px; margin-left: 8px; }
+
+@media (max-width: 520px) {
+  .cc-stage { grid-template-columns: 56px 1fr 56px; gap: 6px; }
+  .cc-bub { font-size: 18px; max-width: 92%; }
+  .cc-name { font-size: 13px; padding: 1px 10px; }
+}
+
+/* ---------- Listen and Choose ---------- */
+.lc-audio-row { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 18px 0; flex-wrap: wrap; }
+.lc-play {
+  width: 120px; height: 120px; border-radius: 50%;
+  border: none; background: var(--colour-primary); color: #fff;
+  font-size: 52px; cursor: pointer; box-shadow: 0 6px 0 var(--colour-primary-dark);
+}
+.lc-play:active { transform: translateY(3px); box-shadow: 0 3px 0 var(--colour-primary-dark); }
+.lc-small-btn {
+  min-height: 52px; padding: 8px 18px; border-radius: 999px; border: 3px solid var(--colour-border);
+  background: var(--colour-card); font-family: var(--font-round); font-size: 17px; cursor: pointer;
+}
+.lc-wave { display: flex; gap: 4px; height: 40px; align-items: center; }
+.lc-wave span { width: 6px; height: 10px; background: var(--colour-primary); border-radius: 3px; }
+.lc-wave.playing span { animation: lc-wave 0.7s ease-in-out infinite alternate; }
+.lc-wave span:nth-child(2) { animation-delay: 0.1s; } .lc-wave span:nth-child(3) { animation-delay: 0.2s; }
+.lc-wave span:nth-child(4) { animation-delay: 0.3s; } .lc-wave span:nth-child(5) { animation-delay: 0.4s; }
+@keyframes lc-wave { from { height: 8px; } to { height: 36px; } }
+
+.lc-gap { font-size: 26px; font-family: var(--font-round); text-align: center; margin: 10px 0; }
+.lc-options { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-top: 10px; }
+.lc-options.lc-text-options { grid-template-columns: 1fr; max-width: 480px; margin-left: auto; margin-right: auto; }
+.lc-option {
+  background: var(--colour-card); border: 3px solid var(--colour-border);
+  border-radius: var(--radius-md); cursor: pointer; padding: 12px;
+  font-family: var(--font-round); font-size: 22px; min-height: 56px;
+}
+.lc-option:hover { border-color: var(--colour-primary); }
+.lc-option.lc-wrong { background: var(--colour-error-soft); border-color: var(--colour-accent); }
+.lc-option.lc-correct { background: #E9FBF2; border-color: var(--colour-success); }
+.lc-option .lc-img { border-radius: var(--radius-sm); overflow: hidden; background: #E3F2FF; }
+
+.ea-progress-dots { display: flex; gap: 8px; justify-content: center; margin: 12px 0; }
+.ea-progress-dots span { width: 16px; height: 16px; border-radius: 50%; background: var(--colour-border); }
+.ea-progress-dots span.done { background: var(--colour-success); }
+.ea-progress-dots span.now { background: var(--colour-secondary); }
+
+@media (max-width: 500px) {
+  .ea-instruction { font-size: 19px; }
+  .st-carriage { font-size: 20px; }
+  .lc-play { width: 96px; height: 96px; }
+}
+
+/* ---------- Word Match ---------- */
+.wm-board { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; max-width: 620px; margin: 10px auto 0; }
+.wm-col { display: flex; flex-direction: column; gap: 12px; }
+.wm-word {
+  min-height: 56px; padding: 8px 14px; font-size: 22px; font-family: var(--font-round);
+  border-radius: 999px; cursor: pointer; border: 3px solid var(--colour-border);
+  background: var(--colour-card); color: var(--colour-text);
+}
+.wm-word.wm-en { border-color: #BFD8FB; }
+.wm-word.wm-cs { border-color: #F5DFA6; }
+.wm-word:hover:not(:disabled) { border-color: var(--colour-primary); }
+.wm-word.wm-selected { outline: 4px solid var(--colour-purple); transform: scale(1.04); }
+.wm-word.wm-done {
+  background: #E9FBF2; border-color: var(--colour-success); color: var(--colour-text);
+  cursor: default; position: relative;
+}
+.wm-word.wm-done::after { content: " ✓"; color: var(--colour-success); font-weight: 700; }
+@media (max-width: 460px) {
+  .wm-board { gap: 10px 10px; }
+  .wm-word { font-size: 18px; min-height: 50px; }
+}
+
+/* ---------- Spelling Bee ---------- */
+.sb-picture { text-align: center; margin: 8px 0 14px; }
+.sb-picture svg, .sb-picture img { max-height: clamp(180px, 34vh, 280px); max-width: min(560px, 100%); border-radius: var(--radius-md); }
+.sb-word { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.sb-slot {
+  width: 52px; height: 62px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-round); font-size: 34px; color: var(--colour-text);
+  background: #fff; border: 3px dashed var(--colour-border); border-radius: 12px;
+}
+.sb-fixed { border-style: solid; background: var(--colour-background); }
+.sb-filled { border-style: solid; border-color: var(--colour-success); background: #E9FBF2; }
+.sb-hint-slot { border-color: var(--colour-secondary); box-shadow: 0 0 0 4px rgba(255, 202, 58, 0.4); }
+.sb-bank {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(46px, 1fr));
+  gap: 8px; max-width: 720px; margin: 0 auto;
+}
+.sb-letter {
+  min-height: 52px; font-family: var(--font-round); font-size: 24px;
+  background: var(--colour-card); border: 3px solid var(--colour-border);
+  border-radius: 12px; cursor: pointer;
+}
+.sb-letter:hover { border-color: var(--colour-primary); }
+.sb-letter.sb-hint { animation: ea-bounce 0.5s ease-in-out 3; border-color: var(--colour-secondary); background: #FFF6DC; }
+@media (max-width: 560px) {
+  .sb-slot { width: 40px; height: 50px; font-size: 26px; }
+  .sb-letter { min-height: 44px; font-size: 19px; }
+}
