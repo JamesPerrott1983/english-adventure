@@ -1252,3 +1252,32 @@ EA.starterGames = function () {
     if (lesson && lesson.games.spellingBee) lesson.games.spellingBee.enabled = false;
   });
 })();
+
+/* ---- Page 6, activity 1: the Lucy and Tom conversation as the comic. */
+(function () {
+  var lesson = null;
+  for (var i = 0; i < EA.builtInLessons.length; i++) {
+    if (EA.builtInLessons[i].id === "t0-u1-hello-hi-p6") { lesson = EA.builtInLessons[i]; break; }
+  }
+  if (!lesson) return;
+  lesson.games.conversationComic = {
+    enabled: true,
+    setting: "school-playground",
+    characters: [
+      { id: "lucy", name: "Lucy" },
+      { id: "tom", name: "Tom" }
+    ],
+    scenes: [
+      { speaker: "lucy", text: "Hello!", responseSpeaker: "tom",
+        options: ["Hi!", "A pencil.", "Good night!"], answer: "Hi!" },
+      { speaker: "lucy", text: "What's your name?", responseSpeaker: "tom",
+        options: ["My name's Tom.", "I'm fine.", "It's a bus."], answer: "My name's Tom." },
+      { speaker: "tom", text: "What's your name?", responseSpeaker: "lucy",
+        options: ["My name's Lucy.", "Goodbye!", "Seven."], answer: "My name's Lucy." },
+      { speaker: "tom", text: "Hello, Lucy!", responseSpeaker: "lucy",
+        options: ["Hi, Tom!", "It's green.", "Close the door."], answer: "Hi, Tom!" },
+      { speaker: "tom", text: "Good-bye, Lucy!", responseSpeaker: "lucy",
+        options: ["Bye, Tom.", "Hello, Tom.", "A zebra."], answer: "Bye, Tom." }
+    ]
+  };
+})();
