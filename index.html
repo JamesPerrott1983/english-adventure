@@ -21,6 +21,11 @@
     <p class="ea-instruction" style="margin-top:18px">Hello! Are you ready to learn English? Tap the sign to start!</p>
     <p class="ea-cs" lang="cs">Ahoj! Klepni na nápis a začni hrát!</p>
     <p><span class="ea-chip">⭐ <span id="total-stars">0</span> stars earned</span></p>
+    <p style="margin-top:14px">
+      <button class="lc-small-btn" id="force-refresh" title="Fetch the newest version of the app from the internet">
+        ↻ Get the newest version
+      </button>
+    </p>
   </div>
 
   <section id="recent-section" hidden>
@@ -35,6 +40,12 @@
 <script src="js/audio.js"></script>
 <script src="js/art.js"></script>
 <script src="js/navigation.js"></script>
+<script>
+  document.getElementById("force-refresh").addEventListener("click", function () {
+    this.textContent = "\u21BB Updating\u2026";
+    EA.forceRefresh();
+  });
+</script>
 <script src="js/lesson-data.js"></script>
 <script src="js/curriculum-data.js"></script>
 <script src="js/custom-lessons.js"></script>

@@ -117,7 +117,37 @@ EA.registerServiceWorker = function () {
   if (!("serviceWorker" in navigator)) return;
   if (location.protocol !== "http:" && location.protocol !== "https:") return; // file:// — skip quietly
   var base = window.EA_BASE || "";
-  navigator.serviceWorker.register(base + "sw.js").catch(function () { /* offline caching unavailable */ });
+  navigator.serviceWorker.register(base + "sw.js").then(function (reg) {
+    /* Ask the browser to check for a newer sw.js on every page load. */
+    if (reg.update) reg.update();
+  }).catch(function () { /* offline caching unavailable */ });
+
+  /* When a new version has taken over, reload once so the page runs it. */
+  var reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", function () {
+    if (reloaded) return;
+    reloaded = true;
+    if (EA.toast) EA.toast("\u2728 Updating to the newest version\u2026", 1200);
+    setTimeout(function () { location.reload(); }, 600);
+  });
+};
+
+/* Hard refresh: forget every cached file and reload from the internet.
+   Wired to the "Get the newest version" buttons. */
+EA.forceRefresh = function () {
+  var done = function () { location.reload(); };
+  var p = [];
+  if (window.caches && caches.keys) {
+    p.push(caches.keys().then(function (keys) {
+      return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+    }));
+  }
+  if ("serviceWorker" in navigator && navigator.serviceWorker.getRegistration) {
+    p.push(navigator.serviceWorker.getRegistration().then(function (reg) {
+      if (reg) return reg.update();
+    }).catch(function () {}));
+  }
+  Promise.all(p).then(done, done);
 };
 
 /* Detect file:// so pages can adjust behaviour (fetch of JSON is blocked). */

@@ -1,6 +1,8 @@
-/* English Adventure — offline service worker (cache-first app shell).
+/* English Adventure — offline service worker.
+   Network-first for code and pages (fresh on every online visit),
+   cache-first for assets; the cache is the offline fallback.
    Registered only on http/https; skipped on file:// . */
-var CACHE = "english-adventure-v54";
+var CACHE = "english-adventure-v55";
 var SHELL = [
   "index.html", "lessons.html", "lesson.html", "progress.html", "teacher.html",
   "teacher-edit.html", "games/picture-match.html", "games/sentence-train.html",
@@ -26,25 +28,36 @@ self.addEventListener("activate", function (e) {
 
 self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET") return;
-  /* custom-lessons.js is the teacher-published file: always try the network
-     first so a replaced file takes effect without a service-worker bump. */
-  if (e.request.url.indexOf("custom-lessons.js") >= 0) {
+  var url = e.request.url;
+
+  /* Heavy, rarely-changing files (pictures, sounds): cache-first. */
+  var isAsset = url.indexOf("/assets/") >= 0;
+
+  if (isAsset) {
     e.respondWith(
-      fetch(e.request).then(function (res) {
-        var copy = res.clone();
-        caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
-        return res;
-      }).catch(function () { return caches.match(e.request, { ignoreSearch: true }); })
+      caches.match(e.request, { ignoreSearch: true }).then(function (hit) {
+        return hit || fetch(e.request).then(function (res) {
+          var copy = res.clone();
+          caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
+          return res;
+        });
+      })
     );
     return;
   }
+
+  /* Everything else (pages, scripts, styles, lesson data): NETWORK-FIRST,
+     so every online visit gets the newest version straight away; the cache
+     only answers when the network is unavailable (offline still works). */
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then(function (hit) {
-      return hit || fetch(e.request).then(function (res) {
-        var copy = res.clone();
-        caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
-        return res;
+    fetch(e.request).then(function (res) {
+      var copy = res.clone();
+      caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
+      return res;
+    }).catch(function () {
+      return caches.match(e.request, { ignoreSearch: true }).then(function (hit) {
+        return hit || caches.match("index.html");
       });
-    }).catch(function () { return caches.match("index.html"); })
+    })
   );
 });

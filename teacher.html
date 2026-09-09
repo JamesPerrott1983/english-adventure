@@ -134,6 +134,8 @@
 
     <section class="ea-card" style="margin-bottom:18px">
       <h2>Settings</h2>
+      <p><button class="lc-small-btn" id="force-refresh">↻ Get the newest version of the app</button>
+         <span class="te-correct-hint">Fetches everything fresh from the internet — use this if a change is not appearing.</span></p>
       <div class="ea-field"><label class="ea-switch"><input type="checkbox" id="set-cs"> Show Czech support text</label></div>
       <div class="ea-field"><label class="ea-switch"><input type="checkbox" id="set-sound"> Sound enabled</label></div>
       <div class="ea-field"><label class="ea-switch"><input type="checkbox" id="set-motion"> Reduce motion</label></div>
@@ -616,6 +618,11 @@
     ta.focus();
     EA.toast("Inserted " + ref);
   }
+
+  EA.qs("#force-refresh").addEventListener("click", function () {
+    this.textContent = "\u21BB Updating\u2026";
+    EA.forceRefresh();
+  });
 
   /* ================= Publish to the app ================= */
   EA.buildCustomLessonsFile = function () {
