@@ -949,31 +949,17 @@ EA.starterGames = function () {
     ]
   };
 
-  /* "My telephone number is ..." \u2014 the three number groups may be said
-     in any order, so every permutation is accepted. */
-  function phoneItem(id, groups, img) {
-    var base = ["My", "telephone", "number", "is"];
-    var perms = [];
-    groups.forEach(function (a) {
-      groups.forEach(function (b) {
-        groups.forEach(function (c) {
-          if (a !== b && b !== c && a !== c) perms.push(base.concat([a, b, c]));
-        });
-      });
-    });
-    return {
-      id: id, level: 1,
-      prompt: "Say your telephone number.", promptCs: "\u0158ekni sv\u00E9 telefonn\u00ED \u010D\u00EDslo.",
-      image: img,
-      answer: perms[0], altAnswers: perms.slice(1), distractors: []
-    };
-  }
+  /* "My telephone number is ..." \u2014 the whole number rides on one
+     carriage, so there is no ordering trap in the number groups. */
   lesson.games.sentenceTrain = {
     enabled: true,
     contractions: {},
     items: [
-      phoneItem("st-01", ["342", "806", "157"], "assets/lesson-images/p8/telephone.webp"),
-      phoneItem("st-02", ["723", "481", "596"], "assets/lesson-images/p8/computer.webp")
+      { id: "st-01", level: 1,
+        prompt: "Say your telephone number.", promptCs: "\u0158ekni sv\u00E9 telefonn\u00ED \u010D\u00EDslo.",
+        image: "assets/lesson-images/p8/telephone.webp",
+        answer: ["My", "telephone", "number", "is", "342 806 157."],
+        distractors: [] }
     ]
   };
 })();
@@ -1278,6 +1264,42 @@ EA.starterGames = function () {
         options: ["Hi, Tom!", "It's green.", "Close the door."], answer: "Hi, Tom!" },
       { speaker: "tom", text: "Good-bye, Lucy!", responseSpeaker: "lucy",
         options: ["Bye, Tom.", "Hello, Tom.", "A zebra."], answer: "Bye, Tom." }
+    ]
+  };
+})();
+
+/* ---- Page 14: Conversation Comic \u2014 the teacher's revision dialogue
+   between Tom and Lucy (greetings, names, how-are-you and colours). */
+(function () {
+  var lesson = null;
+  for (var i = 0; i < EA.builtInLessons.length; i++) {
+    if (EA.builtInLessons[i].id === "t0-u5-numbers-p14") { lesson = EA.builtInLessons[i]; break; }
+  }
+  if (!lesson) return;
+  lesson.games.conversationComic = {
+    enabled: true,
+    setting: "school-playground",
+    characters: [
+      { id: "tom", name: "Tom" },
+      { id: "lucy", name: "Lucy" }
+    ],
+    scenes: [
+      { speaker: "tom", text: "Hello!", responseSpeaker: "lucy",
+        options: ["Hi!", "A pencil.", "Good night!"], answer: "Hi!" },
+      { speaker: "tom", text: "What's your name?", responseSpeaker: "lucy",
+        options: ["My name's Lucy.", "It's a bus.", "Seven."], answer: "My name's Lucy." },
+      { speaker: "lucy", text: "What's your name?", responseSpeaker: "tom",
+        options: ["My name's Tom.", "Goodbye!", "It's blue."], answer: "My name's Tom." },
+      { speaker: "lucy", text: "How are you, Tom?", responseSpeaker: "tom",
+        options: ["I'm fine, thank you.", "A zebra.", "Close the door."], answer: "I'm fine, thank you." },
+      { speaker: "tom", text: "What about you?", responseSpeaker: "lucy",
+        options: ["I'm fine, thanks.", "Stand up.", "It's a taxi."], answer: "I'm fine, thanks." },
+      { speaker: "tom", text: "What colour is a banana?", responseSpeaker: "lucy",
+        options: ["It's yellow.", "It's a banana.", "Ten."], answer: "It's yellow." },
+      { speaker: "lucy", text: "What colour is grass?", responseSpeaker: "tom",
+        options: ["It's green.", "It's grass.", "Hello, Lucy!"], answer: "It's green." },
+      { speaker: "tom", text: "Goodbye.", responseSpeaker: "lucy",
+        options: ["Bye.", "Hi!", "An alligator."], answer: "Bye." }
     ]
   };
 })();
