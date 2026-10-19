@@ -2,7 +2,7 @@
    Network-first for code and pages (fresh on every online visit),
    cache-first for assets; the cache is the offline fallback.
    Registered only on http/https; skipped on file:// . */
-var CACHE = "english-adventure-v56";
+var CACHE = "english-adventure-v57";
 var SHELL = [
   "index.html", "lessons.html", "lesson.html", "progress.html", "teacher.html",
   "teacher-edit.html", "games/picture-match.html", "games/sentence-train.html",

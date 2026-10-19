@@ -953,13 +953,33 @@ EA.starterGames = function () {
      carriage, so there is no ordering trap in the number groups. */
   lesson.games.sentenceTrain = {
     enabled: true,
-    contractions: {},
+    contractions: { "What's": "What is" },
     items: [
       { id: "st-01", level: 1,
         prompt: "Say your telephone number.", promptCs: "\u0158ekni sv\u00E9 telefonn\u00ED \u010D\u00EDslo.",
         image: "assets/lesson-images/p8/telephone.webp",
         answer: ["My", "telephone", "number", "is", "342 806 157."],
-        distractors: [] }
+        distractors: [] },
+      { id: "st-02", level: 1,
+        prompt: "Ask about the colour.", promptCs: "Zeptej se na barvu.",
+        image: "assets/lesson-images/p10/egg.svg",
+        answer: ["What", "colour", "is", "an", "egg?"], distractors: ["orange?"] },
+      { id: "st-03", level: 1,
+        prompt: "Ask about the colour.", promptCs: "Zeptej se na barvu.",
+        image: "assets/lesson-images/p8/zebra.webp",
+        answer: ["What", "colour", "is", "a", "zebra?"], distractors: ["giraffe?"] },
+      { id: "st-04", level: 1,
+        prompt: "Ask how your friend is.", promptCs: "Zeptej se, jak se kamar\u00E1d m\u00E1.",
+        image: "svg:question",
+        answer: ["How", "are", "you?"], distractors: ["is"] },
+      { id: "st-05", level: 1,
+        prompt: "Ask for a name.", promptCs: "Zeptej se na jm\u00E9no.",
+        image: "svg:introduce-girl",
+        answer: ["What's", "your", "name?"], distractors: ["surname?"] },
+      { id: "st-06", level: 1,
+        prompt: "Ask about the colour.", promptCs: "Zeptej se na barvu.",
+        image: "assets/lesson-images/p10/orange.svg",
+        answer: ["What", "colour", "is", "an", "orange?"], distractors: ["alligator?"] }
     ]
   };
 })();
